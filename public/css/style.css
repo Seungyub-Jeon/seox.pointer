@@ -1,0 +1,114 @@
+/* 기본 페이지 스타일 */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+    line-height: 1.6;
+    color: #333;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header, footer {
+    text-align: center;
+    padding: 20px 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 15px 0;
+}
+
+section {
+    margin: 40px 0;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    margin: 10px 5px;
+}
+
+ul, ol {
+    margin-left: 20px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+}
+
+table, th, td {
+    border: 1px solid #ddd;
+}
+
+th, td {
+    padding: 10px;
+    text-align: left;
+}
+
+form {
+    margin: 15px 0;
+}
+
+label {
+    display: block;
+    margin: 5px 0;
+}
+
+input {
+    padding: 8px;
+    margin: 5px 0 15px;
+}
+
+/* 북마클릿 링크 스타일 */
+.bookmarklet-container {
+    margin: 20px 0;
+    text-align: center;
+}
+
+.bookmarklet-link {
+    display: inline-block;
+    padding: 10px 15px;
+    background: #4285f4;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.bookmarklet-link:hover {
+    background: #3367d6;
+}
+
+pre {
+    background: #f5f5f5;
+    padding: 15px;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin: 15px 0;
+}
+
+code {
+    font-family: monospace;
+    font-size: 14px;
+    background-color: #f5f5f5;
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+.server-info {
+    margin-top: 30px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-left: 4px solid #4285f4;
+    border-radius: 4px;
+} 

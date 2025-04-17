@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SEO와 웹접근성 테스트를 위한 페이지입니다">
+    <title>SEO & 웹접근성 체크 북마클릿 테스트</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>SEO & 웹접근성 체크 북마클릿</h1>
+        <p>이 페이지는 북마클릿 테스트를 위한 페이지입니다.</p>
+    </header>
+
+    <main>
+        <section>
+            <h2>북마클릿 설치 방법</h2>
+            <p>아래 링크를 브라우저 북마크바에 드래그하세요:</p>
+            <div class="bookmarklet-container">
+                <a href="javascript:(function(){if(document.getElementById('seo-checker-overlay'))return;const SERVER_URL='http://localhost:3000',cssLink=document.createElement('link');cssLink.rel='stylesheet',cssLink.href=`${SERVER_URL}/css/seo-checker.css`,document.head.appendChild(cssLink);const script=document.createElement('script');script.src=`${SERVER_URL}/js/seo-checker.js?v=${Math.random()}`,document.body.appendChild(script);})();" class="bookmarklet-link">SEO & 웹접근성 체크</a>
+            </div>
+            <p>또는 <a href="/bookmarklet.min.js" target="_blank">이 링크</a>에서 전체 코드를 복사하여 북마크 URL에 직접 입력하세요.</p>
+            
+            <div class="server-info">
+                <h3>서버 정보</h3>
+                <p>이 북마클릿은 서버에서 필요한 코드를 로드하는 방식으로 동작합니다.</p>
+                <p>현재 서버 URL: <code>http://localhost:3000</code></p>
+                <p>실제 사용 환경에서는 이 URL을 실제 서버 주소로 변경해야 합니다.</p>
+            </div>
+        </section>
+
+        <section>
+            <h2>테스트 콘텐츠</h2>
+            <p>이 섹션은 북마클릿 테스트를 위한 다양한 HTML 요소를 포함합니다.</p>
+            
+            <h3>이미지 테스트</h3>
+            <img src="https://via.placeholder.com/150" alt="적절한 대체 텍스트가 있는 이미지">
+            <img src="https://via.placeholder.com/150" alt="">
+            <img src="https://via.placeholder.com/150">
+            
+            <h3>링크 테스트</h3>
+            <ul>
+                <li><a href="https://example.com">외부 링크</a></li>
+                <li><a href="/internal">내부 링크</a></li>
+                <li><a href="#">앵커 링크</a></li>
+                <li><a>href 없는 링크</a></li>
+            </ul>
+            
+            <h3>헤딩 구조 테스트</h3>
+            <h4>잘못된 순서의 헤딩</h4>
+            <h6>너무 낮은 레벨의 헤딩</h6>
+            
+            <h3>기타 요소</h3>
+            <table>
+                <tr>
+                    <th>헤더 1</th>
+                    <th>헤더 2</th>
+                </tr>
+                <tr>
+                    <td>데이터 1</td>
+                    <td>데이터 2</td>
+                </tr>
+            </table>
+            
+            <form>
+                <label for="name">이름:</label>
+                <input type="text" id="name" name="name">
+                <input type="submit" value="제출">
+            </form>
+        </section>
+    </main>
+
+    <footer>
+        <p>© 2023 SEO & 웹접근성 체크 북마클릿</p>
+    </footer>
+</body>
+</html> 
