@@ -2055,7 +2055,12 @@
      * 고급 SEO 분석 함수
      */
     function analyzeAdvanced() {
-        const advancedTab = document.getElementById('advanced-content');
+        const advancedTab = document.getElementById('seo-checker-advanced');
+        
+        if (!advancedTab) {
+            console.error('고급 설정 탭 컨테이너를 찾을 수 없습니다: #seo-checker-advanced');
+            return;
+        }
         
         // 초기화 메시지 표시
         advancedTab.innerHTML = '<div class="loading">고급 분석 중...</div>';
@@ -2180,9 +2185,11 @@
                 
                 // 결과 표시
                 advancedTab.innerHTML = html;
+                console.log('고급 분석 완료');
                 
             } catch (error) {
                 advancedTab.innerHTML = `<div class="error">고급 분석 중 오류가 발생했습니다: ${error.message}</div>`;
+                console.error('고급 분석 중 오류 발생:', error);
             }
         }, 500);
     }
