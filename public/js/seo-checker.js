@@ -137,7 +137,13 @@
      */
     async function analyzeOverview() { // async 추가
         const container = document.getElementById('seo-checker-overview');
-        let content = '<div class="tab-title">개요</div>';
+        if (!container) {
+            console.error('#seo-checker-overview container not found!');
+            return;
+        }
+        
+        // 로딩 표시 추가
+        container.innerHTML = '<div class="loading-indicator"><div class="loading-spinner"></div><span>페이지 분석 중...</span></div>';
 
         // --- 유틸리티 함수: 한글 포함 여부 확인 ---
         const containsKorean = (text) => {
@@ -177,13 +183,22 @@
         const keywords = keywordsMeta ? keywordsMeta.getAttribute('content')?.trim() : '';
         const publisherMeta = document.querySelector('meta[name="publisher"]');
         const publisher = publisherMeta ? publisherMeta.getAttribute('content')?.trim() : '';
-
+        
         // 6. Lang & Word Count
         const htmlLang = document.documentElement.getAttribute('lang') || '';
         const bodyContent = document.body.textContent || '';
         const wordCount = bodyContent.trim().split(/\s+/).filter(Boolean).length; // 빈 문자열 필터링
 
-        // 7. Element Counts
+        // 7. hreflang 분석 추가
+        const hreflangLinks = document.querySelectorAll('link[rel="alternate"][hreflang]');
+        const hreflangData = Array.from(hreflangLinks).map(link => {
+            return {
+                lang: link.getAttribute('hreflang'),
+                href: link.getAttribute('href')
+            };
+        });
+        
+        // 8. Element Counts (분석 통계용)
         const h1Count = document.querySelectorAll('h1').length;
         const h2Count = document.querySelectorAll('h2').length;
         const h3Count = document.querySelectorAll('h3').length;
@@ -192,7 +207,7 @@
         const h6Count = document.querySelectorAll('h6').length;
         const imgCount = document.querySelectorAll('img').length;
         const linkCount = document.querySelectorAll('a').length;
-
+        
         // --- 상태 메시지 생성 --- 
         let titleStatus = 'seo-checker-status-good';
         let titleIndicator = `${titleLength}자`;
@@ -200,7 +215,7 @@
         const isKoreanTitle = containsKorean(title);
         const minKoreanTitleLength = 35; // 한글 타이틀 최소 길이
         const maxTitleLength = isKoreanTitle ? 35 : 60; // 최대 길이는 유지 (한글 35, 영어 60)
-
+        
         if (titleLength === 0) {
             titleStatus = 'seo-checker-status-error';
             titleIndicator = '없음';
@@ -211,8 +226,8 @@
             titleMessage = `타이틀이 너무 짧습니다. (한글 기준 최소 ${minKoreanTitleLength}자 권장)`;
         } else if (!isKoreanTitle && titleLength < 10) {
              // 영문 등인데 최소 길이(10) 미만일 때
-             titleStatus = 'seo-checker-status-warning';
-             titleMessage = `타이틀이 너무 짧습니다. (최소 10자 권장)`;
+            titleStatus = 'seo-checker-status-warning';
+            titleMessage = `타이틀이 너무 짧습니다. (최소 10자 권장)`;
         } else if (titleLength > maxTitleLength) {
             titleStatus = 'seo-checker-status-warning';
             titleMessage = `타이틀이 너무 깁니다. ${isKoreanTitle ? '(한글 기준 최대 35자 권장)' : '(최대 60자 권장)'} 검색 결과에서 잘릴 수 있습니다.`;
@@ -263,6 +278,10 @@
         const langStatus = htmlLang ? 'seo-checker-status-good' : 'seo-checker-status-error';
         const langIndicator = htmlLang ? htmlLang : '없음';
         
+        // hreflang 상태 설정
+        const hreflangStatus = hreflangData.length > 0 ? 'seo-checker-status-good' : 'seo-checker-status-info';
+        const hreflangIndicator = hreflangData.length > 0 ? `${hreflangData.length}개` : '없음';
+        
         // Word Count 상태 로직 추가
         let wordStatus = 'seo-checker-status-good';
         let wordIndicator = '충분';
@@ -272,123 +291,187 @@
         }
 
         // --- HTML 생성 --- 
+        let content = `
+            <div class="tab-title">개요</div>
+            <div class="overview-cards">
+                <!-- SEO 점수 카드 -->
+                <div class="overview-score-card">
+                    <div class="page-info">
+                        <div class="page-url"><strong>URL: </strong>${pageUrl}</div>
+                        <div class="page-title-preview"><strong>타이틀: </strong>${title || '(타이틀 없음)'}</div>
+                        <div class="page-desc-preview"><strong>설명: </strong>${description || '(메타 설명 없음)'}</div>
+                    </div>
+                    <div class="score-chart">
+                        <div class="score-circle">
+                            <div class="score-number">${isIndexable ? '✓' : '✗'}</div>
+                            <div class="score-label">색인 가능</div>
+                        </div>
+                    </div>
+                </div>
 
-        // 카드 1: Title, Description, URL, Canonical
-        content += `
-            <div class="seo-checker-item">
-                <div class="overview-item overview-full">
-                    <span class="overview-label">Title</span>
-                    <div class="overview-value-wrapper">
-                        <span class="overview-value">${title || '(없음)'}</span>
-                        <p class="note">${titleMessage}</p>
-                        <p class="importance-note">검색 결과 제목 및 브라우저 탭에 표시되며, SEO 순위에 중요한 영향을 미칩니다.</p>
+                <!-- Title 카드 -->
+                <div class="overview-data-card">
+                    <div class="card-header">
+                        <h3>페이지 타이틀</h3>
+                        <span class="seo-checker-status ${titleStatus}">${titleIndicator}</span>
                     </div>
-                    <span class="seo-checker-status ${titleStatus}">${titleIndicator}</span>
-                </div>
-                 <div class="overview-item overview-full">
-                    <span class="overview-label">Description</span>
-                    <div class="overview-value-wrapper">
-                        <span class="overview-value">${description || '(없음)'}</span>
-                         <p class="note">${descMessage}</p>
-                         <p class="importance-note">검색 결과에 페이지 요약으로 표시되어 클릭률(CTR)에 영향을 줍니다.</p>
+                    <div class="card-content">
+                        <div class="data-value full-width">${title || '(없음)'}</div>
+                        <div class="data-meta compact">
+                            <p class="note">${titleMessage}</p>
+                            <p class="importance-note">검색 결과 제목 및 브라우저 탭에 표시되며, SEO 순위에 중요한 영향을 미칩니다.</p>
+                        </div>
                     </div>
-                    <span class="seo-checker-status ${descStatus}">${descIndicator}</span>
                 </div>
-                 <div class="overview-item overview-full"> 
-                    <span class="overview-label">URL</span>
-                     <div class="overview-value-wrapper">
-                        <span class="overview-value">${pageUrl}</span>
-                        <p class="importance-note">현재 페이지의 웹 주소입니다. Robots Tag 설정에 따라 색인 가능 여부가 결정됩니다.</p>
+
+                <!-- Description 카드 -->
+                <div class="overview-data-card">
+                    <div class="card-header">
+                        <h3>메타 설명</h3>
+                        <span class="seo-checker-status ${descStatus}">${descIndicator}</span>
                     </div>
-                    <span class="seo-checker-status ${urlStatus}">${urlIndicator}</span>
+                    <div class="card-content">
+                        <div class="data-value full-width">${description || '(없음)'}</div>
+                        <div class="data-meta compact">
+                            <p class="note">${descMessage}</p>
+                            <p class="importance-note">검색 결과에 페이지 요약으로 표시되어 클릭률(CTR)에 영향을 줍니다.</p>
+                        </div>
+                    </div>
                 </div>
-                 <div class="overview-item overview-full">
-                    <span class="overview-label">Canonical</span>
-                     <div class="overview-value-wrapper">
-                        <span class="overview-value">${canonicalUrl || '(없음)'}</span>
-                        <p class="importance-note">중복 콘텐츠 문제를 방지하기 위해 검색 엔진에 이 페이지의 대표 URL을 알려줍니다.</p>
-                     </div>
-                    <span class="seo-checker-status ${canonicalStatus}">${canonicalIndicator}</span>
+
+                <!-- URL & Canonical 카드 -->
+                <div class="overview-data-card">
+                    <div class="card-header">
+                        <h3>URL 정보</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="data-item">
+                            <div class="data-label">색인 상태:</div>
+                            <div class="data-value">${isIndexable ? '색인 가능' : '색인 불가능'}</div>
+                            <div class="data-status"><span class="seo-checker-status ${urlStatus}">${urlIndicator}</span></div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">표준 URL:</div>
+                            <div class="data-value">${canonicalUrl || '(없음)'}</div>
+                            <div class="data-status"><span class="seo-checker-status ${canonicalStatus}">${canonicalIndicator}</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Robots & X-Robots 카드 -->
+                <div class="overview-data-card">
+                    <div class="card-header">
+                        <h3>로봇 제어</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="data-item">
+                            <div class="data-label">Robots 태그:</div>
+                            <div class="data-value">${robotsContent || '(없음)'}</div>
+                            <div class="data-status"><span class="seo-checker-status ${robotsStatus}">${robotsContent ? '있음' : '없음'}</span></div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">X-Robots 헤더:</div>
+                            <div class="data-value">${xRobotsTag}</div>
+                            <div class="data-status"><span class="seo-checker-status ${xRobotsStatus}">${xRobotsIndicator}</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Keywords & Lang 카드 -->
+                <div class="overview-data-card">
+                    <div class="card-header">
+                        <h3>언어 및 키워드</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="data-item">
+                            <div class="data-label">HTML 언어:</div>
+                            <div class="data-value">${htmlLang || '(없음)'}</div>
+                            <div class="data-status"><span class="seo-checker-status ${langStatus}">${langIndicator}</span></div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">메타 키워드:</div>
+                            <div class="data-value">${keywords || '(없음)'}</div>
+                            <div class="data-status"><span class="seo-checker-status ${keywordsStatus}">${keywordsIndicator}</span></div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">단어 수:</div>
+                            <div class="data-value">${wordCount}</div>
+                            <div class="data-status"><span class="seo-checker-status ${wordStatus}">${wordIndicator}</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hreflang 카드 (새로 추가) -->
+                <div class="overview-data-card">
+                    <div class="card-header">
+                        <h3>다국어 지원 (Hreflang)</h3>
+                        <span class="seo-checker-status ${hreflangStatus}">${hreflangIndicator}</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="data-item">
+                            <div class="data-meta">
+                                <p class="importance-note">국제적 또는 다국어 웹사이트를 위한 태그로, 검색 엔진에 동일 콘텐츠의 언어별/지역별 버전을 알려줍니다.</p>
+                            </div>
+                            ${hreflangData.length > 0 ? `
+                            <div class="hreflang-list">
+                                <table class="hreflang-table">
+                                    <thead>
+                                        <tr>
+                                            <th>언어 코드</th>
+                                            <th>URL</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${hreflangData.map(item => `
+                                            <tr>
+                                                <td><code>${item.lang}</code></td>
+                                                <td>${item.href}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                            ` : '<div class="no-data">설정된 hreflang 태그가 없습니다. 다국어 사이트인 경우 추가하는 것이 좋습니다.</div>'}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 요소 개수 요약 카드 -->
+                <div class="overview-summary-card">
+                    <div class="card-header">
+                        <h3>문서 요소 통계</h3>
+                    </div>
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <span>H1</span>
+                            <strong>${h1Count}</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>H2</span>
+                            <strong>${h2Count}</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>H3</span>
+                            <strong>${h3Count}</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>H4-H6</span>
+                            <strong>${h4Count + h5Count + h6Count}</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>이미지</span>
+                            <strong>${imgCount}</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>링크</span>
+                            <strong>${linkCount}</strong>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
 
-        // 카드 2: Robots Tag, X-Robots-Tag
-        content += `
-            <div class="seo-checker-item">
-                <div class="overview-item overview-full">
-                    <span class="overview-label">Robots Tag</span>
-                    <div class="overview-value-wrapper">
-                        <span class="overview-value">${robotsContent || '(없음)'}</span>
-                        <p class="importance-note">검색 엔진 로봇에게 페이지 색인 및 링크 수집 허용 여부를 지시합니다. (예: noindex, nofollow)</p>
-                     </div>
-                    <span class="seo-checker-status ${robotsStatus}">${robotsContent ? '있음' : '없음'}</span> 
-                </div>
-                <div class="overview-item overview-full">
-                    <span class="overview-label">X-Robots-Tag</span>
-                     <div class="overview-value-wrapper">
-                        <span class="overview-value">${xRobotsTag}</span>
-                        <p class="importance-note">HTTP 헤더를 통해 Robots Tag와 동일한 지시를 전달하며, HTML 외 파일에도 적용 가능합니다.</p>
-                     </div>
-                     <span class="seo-checker-status ${xRobotsStatus}">${xRobotsIndicator}</span>
-                </div>
-            </div>
-        `;
-        
-        // 카드 3: Keywords, Word Count, Publisher, Lang
-        content += `
-            <div class="seo-checker-item">
-                <div class="overview-item overview-full">
-                    <span class="overview-label">Keywords</span>
-                    <div class="overview-value-wrapper">
-                        <span class="overview-value">${keywords || '(없음)'}</span>
-                        ${keywords ? '<p class="note">참고: Google은 keywords 메타 태그를 순위 요소로 사용하지 않습니다.</p>' : ''}
-                        <p class="importance-note">과거 SEO에 사용되었으나, 현재 주요 검색 엔진에서는 중요도가 낮습니다.</p>
-                    </div>
-                    <span class="seo-checker-status ${keywordsStatus}">${keywordsIndicator}</span>
-                </div>
-                 <div class="overview-item overview-full">
-                    <span class="overview-label">Word Count</span>
-                     <div class="overview-value-wrapper">
-                        <span class="overview-value">${wordCount}</span>
-                        <p class="importance-note">콘텐츠의 양을 나타냅니다. 충분한 정보 제공은 중요하지만, 절대적인 기준은 아닙니다.</p>
-                     </div>
-                    <span class="seo-checker-status ${wordStatus}">${wordIndicator}</span> 
-                </div>
-                 <div class="overview-item overview-full">
-                    <span class="overview-label">Publisher</span>
-                     <div class="overview-value-wrapper">
-                        <span class="overview-value">${publisher || '(없음)'}</span>
-                        <p class="importance-note">콘텐츠 게시자 정보를 명시합니다. 브랜드 인지도 구축에 도움이 될 수 있습니다.</p>
-                     </div>
-                     <span class="seo-checker-status ${publisherStatus}">${publisherIndicator}</span>
-                </div>
-                 <div class="overview-item overview-full">
-                    <span class="overview-label">Lang</span>
-                     <div class="overview-value-wrapper">
-                        <span class="overview-value">${htmlLang || '(없음)'}</span>
-                        <p class="importance-note">페이지의 주 언어를 명시하여, 접근성(스크린 리더)과 검색 결과 지역 타겟팅에 중요합니다.</p>
-                     </div>
-                     <span class="seo-checker-status ${langStatus}">${langIndicator}</span>
-                </div>
-            </div>
-        `;
-
-        // 카드 4: 요소 개수 요약
-        content += `
-            <div class="seo-checker-item overview-summary-card">
-                <span>H1: ${h1Count}</span>
-                <span>H2: ${h2Count}</span>
-                <span>H3: ${h3Count}</span>
-                <span>H4: ${h4Count}</span>
-                <span>H5: ${h5Count}</span>
-                <span>H6: ${h6Count}</span>
-                <span>Images: ${imgCount}</span>
-                <span>Links: ${linkCount}</span>
-            </div>
-        `;
-
-        // 카드 5: Robots.txt 및 Sitemap.xml 링크 (비동기 확인 후 생성)
+        // 파일 링크 카드 (robots.txt, sitemap.xml)
         const origin = window.location.origin;
         const robotsUrl = `${origin}/robots.txt`;
         const sitemapUrl = `${origin}/sitemap.xml`;
@@ -397,25 +480,35 @@
         const robotsExists = await checkFileExists(robotsUrl);
         const sitemapExists = await checkFileExists(sitemapUrl);
 
-        let fileLinksContent = '';
-        if (robotsExists) {
-            fileLinksContent += `<a href="${robotsUrl}" target="_blank" rel="noopener noreferrer">robots.txt 보기</a>`;
-        } else {
-            fileLinksContent += `<span class="not-found">robots.txt 없음</span>`;
-        }
-
-        if (sitemapExists) {
-            fileLinksContent += `<a href="${sitemapUrl}" target="_blank" rel="noopener noreferrer">sitemap.xml 보기</a>`;
-        } else {
-            fileLinksContent += `<span class="not-found">sitemap.xml 없음</span>`;
-        }
-
         content += `
-            <div class="seo-checker-item file-links-card">
-                ${fileLinksContent}
+            <div class="file-links-card">
+                <div class="file-links-title">SEO 파일 확인</div>
+                <div class="file-links-container">
+                    ${robotsExists 
+                      ? `<a href="${robotsUrl}" target="_blank" rel="noopener noreferrer" class="file-link available">
+                           <span class="file-icon">📄</span>
+                           <span class="file-name">robots.txt</span>
+                         </a>` 
+                      : `<span class="file-link unavailable">
+                           <span class="file-icon">🚫</span>
+                           <span class="file-name">robots.txt 없음</span>
+                         </span>`
+                    }
+                    ${sitemapExists 
+                      ? `<a href="${sitemapUrl}" target="_blank" rel="noopener noreferrer" class="file-link available">
+                           <span class="file-icon">🗺️</span>
+                           <span class="file-name">sitemap.xml</span>
+                         </a>` 
+                      : `<span class="file-link unavailable">
+                           <span class="file-icon">🚫</span>
+                           <span class="file-name">sitemap.xml 없음</span>
+                         </span>`
+                    }
+                </div>
             </div>
         `;
 
+        // 최종적으로 내용 할당
         container.innerHTML = content;
     }
     
@@ -429,11 +522,8 @@
             return; 
         }
         
-        // 컨테이너 비우기 및 로그 추가
-        console.log('analyzeHeadings: Before setting innerHTML, length:', container.innerHTML.length);
-        container.innerHTML = ''; 
-
-        let content = '<div class="tab-title">제목 구조</div>';
+        // 로딩 표시 추가
+        container.innerHTML = '<div class="loading-indicator"><div class="loading-spinner"></div><p>제목 구조 분석 중...</p></div>';
 
         // --- 데이터 수집 ---
         // 모든 헤딩 요소를 가져온 후, 북마클릿 UI 내부 요소 제외
@@ -461,7 +551,7 @@
             // 2. 헤딩 순서 검사 (첫 헤딩 제외)
             // 중요: lastLevel이 0일 때(첫 헤딩이 H1이 아닌 경우)도 고려해야 함
             if (lastLevel !== 0 && level > lastLevel + 1) { 
-                issues.push(`레벨 건너뜀 (H${lastLevel} -> H${level})`);
+                issues.push(`레벨 건너뜀 (H${lastLevel} → H${level})`);
             }
 
             headingsData.push({
@@ -471,14 +561,12 @@
             });
 
             // 다음 레벨 비교를 위해 현재 레벨 업데이트 
-            // 건너뛴 경우라도 현재 레벨 기준으로 다음 건너뜀 판단 (H1->H3->H5 같은 경우 H3에서 H5도 잡기 위함)
             lastLevel = level;
-           
         });
 
         // --- H1 태그 상태 ---
         let h1Status = 'seo-checker-status-good';
-        let h1Message = 'H1 태그가 1개 사용되었습니다.';
+        let h1Message = 'H1 태그가 1개 사용되었습니다. (권장)';
         let h1Detail = ''; // H1 내용 표시용
 
         if (h1Count === 0) {
@@ -488,105 +576,125 @@
             h1Status = 'seo-checker-status-warning';
             h1Message = `H1 태그가 ${h1Count}개 사용되었습니다. 일반적으로 페이지당 하나의 H1만 권장합니다.`;
         }
+        
         // H1 내용 가져오기 (첫 번째 H1만)
         const firstH1 = headingsData.find(h => h.level === 1);
         if(firstH1) {
              h1Detail = firstH1.text;
         }
 
-
-        // --- HTML 생성 ---
-
-        // H1 상태 카드
-        content += `
-            <div class="seo-checker-item">
-                <h3>
-                    <span class="seo-checker-status ${h1Status}">H1 태그 (${h1Count}개)</span>
-                </h3>
-                 <div class="overview-value-wrapper"> <!-- 개요 탭 스타일 재활용 -->
-                    <span class="overview-value">${h1Detail || '(H1 없음)'}</span>
-                     <p class="note">${h1Message}</p>
-                     <p class="importance-note">H1 태그는 페이지의 가장 중요한 제목으로, 검색 엔진과 사용자에게 페이지 주제를 명확히 전달합니다.</p>
-                 </div>
-            </div>
-        `;
-
-        // 헤딩 구조 목록
-        content += `
-            <div class="seo-checker-item">
-                <h3>헤딩 구조 목록</h3>
-                <p class="importance-note">헤딩 태그(H1-H6)는 콘텐츠의 계층 구조를 나타내며, 검색 엔진과 스크린 리더 사용자에게 중요합니다. 논리적인 순서와 명확한 내용이 필요합니다.</p>
-                <ul class="heading-structure-list">
-        `;
-
-        if (headingsData.length > 0) {
-             headingsData.forEach(heading => {
-                const issueText = heading.issues.length > 0 ? `<span class="heading-issue">(${heading.issues.join(', ')})</span>` : '';
-                content += `
-                    <li class="heading-level-${heading.level} ${heading.issues.length > 0 ? 'has-issue' : ''}">
-                        <span class="heading-tag">H${heading.level}</span>
-                        <span class="heading-text">${heading.text}</span>
-                        ${issueText}
-                    </li>
-                `;
-            });
-        } else {
-             content += '<li>페이지에 헤딩 태그가 없습니다.</li>';
-        }
-
-
-        content += `
-                </ul>
-            </div>
-        `;
-
-        // HTML 문서 개요 섹션 추가
-        content += `
-            <div class="seo-checker-item">
-                <h3>HTML 문서 개요</h3>
-                <p class="importance-note">페이지의 제목(H1-H6) 구조를 시각적으로 보여줍니다. 콘텐츠의 논리적 흐름을 파악하는 데 도움이 됩니다.</p>
-                <ul class="html-outline-list">
-        `;
-
-        if (headingsData.length > 0) {
-            headingsData.forEach(heading => {
-                // 아웃라인에는 문제점 표시 없이 텍스트만 표시
-                content += `
-                    <li class="outline-level-${heading.level}">
-                        <span class="outline-text">${heading.text}</span>
-                    </li>
-                `;
-            });
-        } else {
-            content += '<li>문서 개요를 생성할 헤딩 태그가 없습니다.</li>';
-        }
-
-        content += `
-                </ul>
-            </div>
-        `;
-
-        // 헤딩 개수 요약 카드 추가
+        // 헤딩 개수 계산
         const h2Count = headingsData.filter(h => h.level === 2).length;
         const h3Count = headingsData.filter(h => h.level === 3).length;
         const h4Count = headingsData.filter(h => h.level === 4).length;
         const h5Count = headingsData.filter(h => h.level === 5).length;
         const h6Count = headingsData.filter(h => h.level === 6).length;
-        
-        content += `
-            <div class="seo-checker-item overview-summary-card"> <!-- 개요 탭 스타일 재활용 -->
-                <span>H1: ${h1Count}</span>
-                <span>H2: ${h2Count}</span>
-                <span>H3: ${h3Count}</span>
-                <span>H4: ${h4Count}</span>
-                <span>H5: ${h5Count}</span>
-                <span>H6: ${h6Count}</span>
+
+        // --- HTML 생성 ---
+        let content = `
+            <div class="tab-title">제목 구조</div>
+            
+            <!-- 헤딩 요약 카드 -->
+            <div class="overview-cards">
+                <!-- H1 상태 카드 -->
+                <div class="overview-data-card full-width">
+                    <div class="card-header">
+                        <h3>H1 태그 상태</h3>
+                        <span class="seo-checker-status ${h1Status}">${h1Count}개</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="data-value full-width">${h1Detail || '(H1 없음)'}</div>
+                        <div class="data-meta compact">
+                            <p class="note">${h1Message}</p>
+                            <p class="importance-note">H1 태그는 페이지의 가장 중요한 제목으로, 검색 엔진과 사용자에게 페이지 주제를 명확히 전달합니다.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 헤딩 통계 카드 -->
+                <div class="overview-summary-card">
+                    <div class="card-header">
+                        <h3>제목 태그 통계</h3>
+                    </div>
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <span>H1</span>
+                            <strong>${h1Count}</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>H2</span>
+                            <strong>${h2Count}</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>H3</span>
+                            <strong>${h3Count}</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>H4</span>
+                            <strong>${h4Count}</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>H5</span>
+                            <strong>${h5Count}</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>H6</span>
+                            <strong>${h6Count}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 헤딩 구조 목록 카드 -->
+            <div class="overview-data-card">
+                <div class="card-header">
+                    <h3>헤딩 구조 목록</h3>
+                </div>
+                <div class="card-content">
+                    <div class="data-meta">
+                        <p class="importance-note">헤딩 태그(H1-H6)는 콘텐츠의 계층 구조를 나타내며, 검색 엔진과 스크린 리더 사용자에게 중요합니다. 논리적인 순서와 명확한 내용이 필요합니다.</p>
+                    </div>
+                    ${headingsData.length > 0 ? `
+                    <ul class="heading-structure-list">
+                        ${headingsData.map(heading => {
+                            const issueText = heading.issues.length > 0 ? `<span class="heading-issue">(${heading.issues.join(', ')})</span>` : '';
+                            return `
+                            <li class="heading-level-${heading.level} ${heading.issues.length > 0 ? 'has-issue' : ''}">
+                                <span class="heading-tag">H${heading.level}</span>
+                                <span class="heading-text">${heading.text}</span>
+                                ${issueText}
+                            </li>
+                            `;
+                        }).join('')}
+                    </ul>
+                    ` : '<div class="no-data">페이지에 헤딩 태그가 없습니다.</div>'}
+                </div>
+            </div>
+
+            <!-- HTML 문서 개요 카드 -->
+            <div class="overview-data-card">
+                <div class="card-header">
+                    <h3>HTML 문서 개요</h3>
+                </div>
+                <div class="card-content">
+                    <div class="data-meta">
+                        <p class="importance-note">페이지의 제목(H1-H6) 구조를 시각적으로 보여줍니다. 콘텐츠의 논리적 흐름을 파악하는 데 도움이 됩니다.</p>
+                    </div>
+                    ${headingsData.length > 0 ? `
+                    <ul class="html-outline-list">
+                        ${headingsData.map(heading => `
+                            <li class="outline-level-${heading.level}">
+                                <span class="outline-text">${heading.text}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                    ` : '<div class="no-data">문서 개요를 생성할 헤딩 태그가 없습니다.</div>'}
+                </div>
             </div>
         `;
 
         // 최종적으로 내용 할당
         container.innerHTML = content;
-        console.log('analyzeHeadings: After setting innerHTML, length:', container.innerHTML.length);
     }
     
     /**
@@ -598,6 +706,9 @@
             console.error('#seo-checker-links container not found!');
             return; 
         }
+        
+        // 로딩 표시 추가
+        container.innerHTML = '<div class="loading-indicator"><div class="loading-spinner"></div><p>링크 분석 중...</p></div>';
         
         let content = '<div class="tab-title">링크 분석</div>';
         
@@ -684,55 +795,138 @@
         });
 
         // --- HTML 생성 ---
-
-        // 링크 통계 카드
+        // 카드 레이아웃 시작
+        content += '<div class="overview-cards">';
+        
+        // 링크 통계 요약 카드
         content += `
-            <div class="seo-checker-item">
-                <h3>링크 통계 요약</h3>
-                <ul class="link-summary-list">
-                    <li><span class="label">총 링크:</span> <span class="value">${totalLinks}개</span></li>
-                    <li><span class="label">내부 링크:</span> <span class="value">${internalLinks.length}개</span></li>
-                    <li><span class="label">외부 링크:</span> <span class="value">${externalLinks.length}개</span></li>
-                    <li class="${brokenLinks.length > 0 ? 'has-issue broken-link-summary' : ''}">
-                        <span class="label">href 속성 없는 링크:</span> 
-                        <span class="value">${brokenLinks.length}개</span>
-                    </li>
-                    <li class="${linksWithoutTitle.length > 0 ? 'has-info' : ''}">
-                        <span class="label">title 속성 없는 링크:</span> 
-                        <span class="value">${linksWithoutTitle.length}개</span>
-                    </li>
-                    <li class="${insecureTargetBlankLinks.length > 0 ? 'has-issue' : ''}">
-                        <span class="label">보안 위험 target="_blank":</span> 
-                        <span class="value">${insecureTargetBlankLinks.length}개</span>
-                    </li>
-                    <li class="${genericTextLinks.length > 0 ? 'has-issue' : ''}">
-                        <span class="label">일반적인 링크 텍스트:</span> 
-                        <span class="value">${genericTextLinks.length}개</span>
-                    </li>
-                </ul>
-                <p class="importance-note">링크는 웹사이트 내/외부를 연결하는 중요한 요소입니다. 깨지거나 정보가 부족한 링크는 사용자 경험과 SEO에 부정적인 영향을 줄 수 있습니다.</p>
+            <div class="overview-summary-card">
+                <div class="card-header">
+                    <h3>링크 통계 요약</h3>
+                </div>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <span>총 링크</span>
+                        <strong>${totalLinks}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>내부 링크</span>
+                        <strong>${internalLinks.length}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>외부 링크</span>
+                        <strong>${externalLinks.length}</strong>
+                    </div>
+                    <div class="summary-item ${brokenLinks.length > 0 ? 'warning' : ''}">
+                        <span>깨진 링크</span>
+                        <strong>${brokenLinks.length}</strong>
+                    </div>
+                    <div class="summary-item ${insecureTargetBlankLinks.length > 0 ? 'warning' : ''}">
+                        <span>보안 위험</span>
+                        <strong>${insecureTargetBlankLinks.length}</strong>
+                    </div>
+                    <div class="summary-item ${genericTextLinks.length > 0 ? 'warning' : ''}">
+                        <span>일반 텍스트</span>
+                        <strong>${genericTextLinks.length}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 링크 분포 시각화 카드 -->
+            <div class="overview-data-card">
+                <div class="card-header">
+                    <h3>내부/외부 링크 비율</h3>
+                </div>
+                <div class="card-content">
+                    <div class="link-ratio-chart">
+                        <div class="chart-container">
+                            <div class="internal-bar" style="width: ${internalLinks.length > 0 ? Math.round((internalLinks.length / totalLinks) * 100) : 0}%;">
+                                <span class="bar-label">${internalLinks.length > 0 ? Math.round((internalLinks.length / totalLinks) * 100) : 0}%</span>
+                            </div>
+                        </div>
+                        <div class="chart-legend">
+                            <div class="legend-item">
+                                <span class="legend-color internal"></span>
+                                <span class="legend-text">내부 링크 (${internalLinks.length}개)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color external"></span>
+                                <span class="legend-text">외부 링크 (${externalLinks.length}개)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
 
-        // 문제점 목록 카드 생성 함수
+        // 링크 문제점 요약 카드
+        if (brokenLinks.length > 0 || insecureTargetBlankLinks.length > 0 || genericTextLinks.length > 0) {
+            content += `
+                <div class="overview-data-card full-width">
+                    <div class="card-header">
+                        <h3>링크 문제점 요약</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="data-meta compact">
+                            <p class="importance-note">잘 구성된 링크는 사용자 경험과 SEO에 중요합니다. 다음 문제들을 해결하면 웹사이트의 품질이 향상됩니다.</p>
+                        </div>
+                        <div class="link-issues-summary">
+                            ${brokenLinks.length > 0 ? `
+                                <div class="issue-category">
+                                    <div class="issue-header">
+                                        <span class="seo-checker-status seo-checker-status-error">href 속성 없음 (${brokenLinks.length}개)</span>
+                                    </div>
+                                    <p class="issue-desc">링크에 href 속성이 없어 사용자가 이동할 수 없습니다. 모든 링크에 유효한 목적지를 지정해야 합니다.</p>
+                                </div>
+                            ` : ''}
+                            
+                            ${insecureTargetBlankLinks.length > 0 ? `
+                                <div class="issue-category">
+                                    <div class="issue-header">
+                                        <span class="seo-checker-status seo-checker-status-warning">보안 위험 target="_blank" (${insecureTargetBlankLinks.length}개)</span>
+                                    </div>
+                                    <p class="issue-desc">새 탭으로 열리는 링크에 rel="noopener noreferrer" 속성이 없어 보안 취약점이 있습니다.</p>
+                                </div>
+                            ` : ''}
+                            
+                            ${genericTextLinks.length > 0 ? `
+                                <div class="issue-category">
+                                    <div class="issue-header">
+                                        <span class="seo-checker-status seo-checker-status-warning">일반적인 링크 텍스트 (${genericTextLinks.length}개)</span>
+                                    </div>
+                                    <p class="issue-desc">"여기", "클릭", "더보기"와 같은 일반적인 텍스트는 맥락 없이 링크의 목적을 이해하기 어렵게 만듭니다.</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 문제점 상세 목록 카드
         const createIssueListCard = (title, description, statusClass, items, itemFormatter) => {
             if (items.length === 0) return '';
             return `
-                <div class="seo-checker-item">
-                    <h3>
-                        <span class="seo-checker-status ${statusClass}">${title} (${items.length}개)</span>
-                    </h3>
-                    <p class="importance-note">${description}</p>
-                    <ul class="link-issue-list">
-                        ${items.map(itemFormatter).join('')}
-                    </ul>
+                <div class="overview-data-card">
+                    <div class="card-header">
+                        <h3>${title}</h3>
+                        <span class="seo-checker-status ${statusClass}">${items.length}개</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="data-meta">
+                            <p class="importance-note">${description}</p>
+                        </div>
+                        <ul class="link-issue-list">
+                            ${items.map(itemFormatter).join('')}
+                        </ul>
+                    </div>
                 </div>
             `;
         };
 
         // href 속성 없는 링크 목록
         content += createIssueListCard(
-            'href 속성 없음',
+            'href 속성 없는 링크',
             '다음 링크에 href 속성이 없거나 비어 있어 사용자가 이동할 수 없습니다. 링크의 목적지를 명시하는 것이 중요합니다.',
             'seo-checker-status-error',
             brokenLinks,
@@ -741,10 +935,10 @@
 
         // Title 없는 링크 목록 (중요도 낮음 - 정보성)
         content += createIssueListCard(
-            'title 속성 없음',
+            'title 속성 없는 링크',
             'title 속성은 선택 사항이지만, 링크의 목적을 추가 설명하여 사용자 경험과 접근성을 높일 수 있습니다. 링크 텍스트가 충분히 설명적이라면 생략해도 됩니다.',
             'seo-checker-status-info',
-            linksWithoutTitle,
+            linksWithoutTitle.slice(0, 20), // 너무 많을 수 있으므로 20개만 표시
             link => `<li><a href="${link.href}" target="_blank" rel="noopener noreferrer">${link.text}</a> <span class="link-href">(${link.href})</span></li>`
         );
 
@@ -766,70 +960,72 @@
             link => `<li><span class="generic-link-text">${link.text}</span> <a href="${link.href}" target="_blank" rel="noopener noreferrer" class="link-preview">↗</a> <span class="link-href">(${link.href})</span></li>`
         );
 
-        // 내부 링크 및 외부 링크 목록 섹션
-        if (internalLinks.length > 0 || externalLinks.length > 0) {
-            // 내부 링크 섹션
-            if (internalLinks.length > 0) {
-                const maxDisplayLinks = 20; // 기본 표시 개수
-                const hasMoreLinks = internalLinks.length > maxDisplayLinks;
-                
-                content += `
-                    <div class="seo-checker-item">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <h3>내부 링크 (${internalLinks.length}개)</h3>
-                            <button class="toggle-list-btn" id="toggle-internal-links">펼치기</button>
-                        </div>
-                        <p class="importance-note">내부 링크는 웹사이트 내 페이지 간 연결을 제공하며, 검색 엔진의 페이지 크롤링과 사이트 구조 이해에 도움을 줍니다.</p>
-                        <ul class="link-full-list collapsible-list" id="internal-links-list">
-                            ${internalLinks.slice(0, maxDisplayLinks).map(link => `
-                                <li>
-                                    <span class="link-text">${link.text}</span>
-                                    <a href="${link.href}" target="_blank" rel="noopener noreferrer" class="link-preview">↗</a>
-                                    <span class="link-href">(${link.href})</span>
-                                </li>
-                            `).join('')}
-                            ${hasMoreLinks ? `<li class="more-links-info">...외 ${internalLinks.length - maxDisplayLinks}개 더 있음</li>` : ''}
-                        </ul>
-                    </div>
-                `;
-            }
+        // 내부 링크 및 외부 링크 목록 카드
+        const createLinkListCard = (title, description, links, type) => {
+            if (links.length === 0) return '';
+            const maxDisplayLinks = 8; // 기본 표시 개수
+            const hasMoreLinks = links.length > maxDisplayLinks;
+            const buttonId = `toggle-${type}-links`;
+            const listId = `${type}-links-list`;
             
-            // 외부 링크 섹션
-            if (externalLinks.length > 0) {
-                const maxDisplayLinks = 20; // 기본 표시 개수
-                const hasMoreLinks = externalLinks.length > maxDisplayLinks;
-                
-                content += `
-                    <div class="seo-checker-item">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <h3>외부 링크 (${externalLinks.length}개)</h3>
-                            <button class="toggle-list-btn" id="toggle-external-links">펼치기</button>
+            return `
+                <div class="overview-data-card">
+                    <div class="card-header">
+                        <h3>${title}</h3>
+                        <span class="seo-checker-status seo-checker-status-info">${links.length}개</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="data-meta">
+                            <p class="importance-note">${description}</p>
+                            ${hasMoreLinks ? `<button class="toggle-list-btn" id="${buttonId}">펼치기</button>` : ''}
                         </div>
-                        <p class="importance-note">외부 링크는 다른 웹사이트로의 연결을 제공합니다. 관련성 높은 외부 링크는 사용자에게 유용한 정보를 제공하고 웹사이트의 신뢰성을 높일 수 있습니다.</p>
-                        <ul class="link-full-list collapsible-list" id="external-links-list">
-                            ${externalLinks.slice(0, maxDisplayLinks).map(link => `
+                        <ul class="link-full-list ${hasMoreLinks ? 'collapsible-list' : ''}" id="${listId}">
+                            ${links.slice(0, maxDisplayLinks).map(link => `
                                 <li>
                                     <span class="link-text">${link.text}</span>
                                     <a href="${link.href}" target="_blank" rel="noopener noreferrer" class="link-preview">↗</a>
                                     <span class="link-href">(${link.href})</span>
                                 </li>
                             `).join('')}
-                            ${hasMoreLinks ? `<li class="more-links-info">...외 ${externalLinks.length - maxDisplayLinks}개 더 있음</li>` : ''}
+                            ${hasMoreLinks ? `<li class="more-links-info">...외 ${links.length - maxDisplayLinks}개 더 있음</li>` : ''}
                         </ul>
                     </div>
-                `;
-            }
-        }
+                </div>
+            `;
+        };
 
-        // 링크 데이터 내보내기 버튼
+        // 내부 링크 목록
+        content += createLinkListCard(
+            '내부 링크',
+            '내부 링크는 웹사이트 내 페이지 간 연결을 제공하며, 검색 엔진의 페이지 크롤링과 사이트 구조 이해에 도움을 줍니다.',
+            internalLinks,
+            'internal'
+        );
+
+        // 외부 링크 목록
+        content += createLinkListCard(
+            '외부 링크',
+            '외부 링크는 다른 웹사이트로 연결되는 링크입니다. 신뢰할 수 있는 사이트로의 링크는 SEO에 도움이 될 수 있지만, 보안과 성능 면에서 주의가 필요합니다.',
+            externalLinks,
+            'external'
+        );
+
+        // 링크 데이터 내보내기 카드
         content += `
-            <div class="seo-checker-item">
-                <h3>링크 데이터 내보내기</h3>
-                <button class="seo-checker-export-btn" id="export-internal-links">내부 링크 (CSV)</button>
-                <button class="seo-checker-export-btn" id="export-external-links">외부 링크 (CSV)</button>
-                <button class="seo-checker-export-btn" id="export-all-links">모든 링크 (CSV)</button>
+            <div class="overview-data-card">
+                <div class="card-header">
+                    <h3>링크 데이터 내보내기</h3>
+                </div>
+                <div class="card-content export-buttons">
+                    <button class="seo-checker-export-btn" id="export-internal-links">내부 링크 (CSV)</button>
+                    <button class="seo-checker-export-btn" id="export-external-links">외부 링크 (CSV)</button>
+                    <button class="seo-checker-export-btn" id="export-all-links">모든 링크 (CSV)</button>
+                </div>
             </div>
         `;
+
+        // 카드 레이아웃 닫기
+        content += '</div>';
 
         container.innerHTML = content;
         
@@ -2895,13 +3091,40 @@
         const container = document.getElementById('seo-checker-structure');
         if (!container) return;
 
-        container.innerHTML = ''; // 컨테이너 비우기
+        // 로딩 표시 추가
+        container.innerHTML = '<div class="loading-indicator"><div class="loading-spinner"></div><p>문서 구조 분석 중...</p></div>';
+
+        // 시맨틱 태그 카운트 초기화
+        const semanticTagCounts = {
+            'HEADER': 0,
+            'FOOTER': 0,
+            'NAV': 0,
+            'MAIN': 0,
+            'ASIDE': 0,
+            'SECTION': 0,
+            'ARTICLE': 0,
+            'H1': 0,
+            'H2': 0,
+            'H3': 0,
+            'UL': 0,
+            'OL': 0
+        };
+
         let content = '<div class="tab-title">문서 구조</div>';
 
+        // 카드 레이아웃 시작
+        content += '<div class="overview-cards">';
+
+        // 문서 구조 설명 카드
         content += `
-            <div class="seo-checker-item">
-                <h3>HTML 문서 구조 (중첩 보기)</h3>
-                <p class="importance-note">페이지의 주요 구조 요소(header, nav, main 등), 헤딩(H1-H6), 리스트(UL/OL), 이미지(IMG)의 실제 중첩 구조를 보여줍니다.</p>
+            <div class="overview-data-card full-width">
+                <div class="card-header">
+                    <h3>HTML 문서 구조</h3>
+                </div>
+                <div class="card-content">
+                    <div class="data-meta compact">
+                        <p class="importance-note">페이지의 주요 구조 요소(header, nav, main 등), 헤딩(H1-H6), 리스트(UL/OL)의 실제 중첩 구조를 보여줍니다. 시맨틱 태그의 올바른 사용은 SEO와 접근성에 중요합니다.</p>
+                    </div>
         `;
 
         // 재귀적으로 구조 리스트 HTML 생성하는 함수
@@ -2923,6 +3146,11 @@
                     let currentItemHtml = '';
 
                     if (relevantTags.includes(tagName)) {
+                        // 시맨틱 태그 카운트 증가
+                        if (tagName in semanticTagCounts) {
+                            semanticTagCounts[tagName]++;
+                        }
+
                         let tagContent = '';
                         let tagTypeClass = 'tag-semantic';
 
@@ -2930,6 +3158,9 @@
                             const text = child.textContent.trim() || '(내용 없음)';
                             tagContent = `<span class="structure-text">${text}</span>`;
                             tagTypeClass = 'tag-heading';
+                            // 헤딩 레벨에 따른 클래스 추가 (h1-tag, h2-tag 등)
+                            const headingLevel = tagName.substring(1); // "H1"에서 "1"만 추출
+                            tagTypeClass += ` h${headingLevel.toLowerCase()}-tag`;
                         } else if (tagName === 'UL' || tagName === 'OL') {
                             // 리스트 아이템 텍스트 추출
                             const listItems = child.querySelectorAll(':scope > li');
@@ -2952,12 +3183,8 @@
                             }
                             tagTypeClass = 'tag-list';
                         } else { // header, nav, main, section 등
-                             const text = child.textContent.trim();
-                             if (text) {
-                                 const truncatedText = text.length > MAX_TEXT_DISPLAY_LENGTH ? text.substring(0, MAX_TEXT_DISPLAY_LENGTH) + '...' : text;
-                                 tagContent = `<span class="structure-text semantic-text">${truncatedText}</span>`;
-                             }
-                             tagTypeClass = 'tag-semantic';
+                            // 시맨틱 태그는 텍스트 없이 태그만 표시 (요청에 따라 변경)
+                            tagTypeClass = 'tag-semantic';
                         }
                         
                         currentItemHtml = `<li><span class="structure-tag ${tagTypeClass}">${tagName}</span> ${tagContent}`;
@@ -2985,10 +3212,126 @@
         if (listContent) {
              content += `<ul class="document-structure-list root-level">${listContent}</ul>`;
         } else {
-             content += '<p>문서 구조를 생성할 관련 요소를 찾을 수 없습니다.</p>';
+             content += '<div class="no-data">문서 구조를 생성할 관련 요소를 찾을 수 없습니다.</div>';
         }
 
-        content += `</div>`; // .seo-checker-item 닫기
+        content += `</div></div>`; // 카드 콘텐츠와 카드 닫기
+
+        // 시맨틱 태그 통계 카드 추가
+        content += `
+            <div class="overview-summary-card">
+                <div class="card-header">
+                    <h3>시맨틱 요소 통계</h3>
+                </div>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <span>HEADER</span>
+                        <strong>${semanticTagCounts['HEADER']}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>NAV</span>
+                        <strong>${semanticTagCounts['NAV']}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>MAIN</span>
+                        <strong>${semanticTagCounts['MAIN']}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>SECTION</span>
+                        <strong>${semanticTagCounts['SECTION']}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>ARTICLE</span>
+                        <strong>${semanticTagCounts['ARTICLE']}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>ASIDE</span>
+                        <strong>${semanticTagCounts['ASIDE']}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>FOOTER</span>
+                        <strong>${semanticTagCounts['FOOTER']}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>UL/OL</span>
+                        <strong>${semanticTagCounts['UL'] + semanticTagCounts['OL']}</strong>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 시맨틱 태그 설명 카드
+        content += `
+            <div class="overview-data-card">
+                <div class="card-header">
+                    <h3>시맨틱 태그 가이드</h3>
+                </div>
+                <div class="card-content">
+                    <div class="data-meta">
+                        <p class="importance-note">시맨틱 태그는 콘텐츠의 의미와 구조를 명확히 하여 SEO 및 접근성을 향상시킵니다.</p>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">HEADER</div>
+                        <div class="data-value">페이지 상단의 헤더 영역 (로고, 네비게이션 등)</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">NAV</div>
+                        <div class="data-value">탐색 메뉴 및 링크 모음</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">MAIN</div>
+                        <div class="data-value">페이지의 주요 콘텐츠 영역</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">SECTION</div>
+                        <div class="data-value">독립적인 콘텐츠 섹션</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">ARTICLE</div>
+                        <div class="data-value">독립적으로 배포 가능한 콘텐츠 블록</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">ASIDE</div>
+                        <div class="data-value">주요 콘텐츠와 간접적으로 관련된 사이드바</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">FOOTER</div>
+                        <div class="data-value">페이지 하단 푸터 영역</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 접근성 팁 카드
+        content += `
+            <div class="overview-data-card">
+                <div class="card-header">
+                    <h3>접근성 체크포인트</h3>
+                </div>
+                <div class="card-content">
+                    <div class="data-meta">
+                        <p class="importance-note">문서 구조의 접근성 향상을 위한 핵심 체크포인트</p>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-value">✓ 시맨틱 태그를 사용하여 콘텐츠 구조화</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-value">✓ 헤딩 태그(H1-H6)를 올바른 계층 구조로 사용</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-value">✓ 키보드 탐색 경로 논리적으로 구성</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-value">✓ 랜드마크 영역 적절히 정의 (header, nav, main 등)</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-value">✓ ARIA 속성 필요에 따라 적절히 사용</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        content += '</div>'; // 카드 레이아웃 닫기
         container.innerHTML = content;
     }
     
@@ -2996,11 +3339,28 @@
      * CSV 파일 다운로드 헬퍼 함수
      */
     function downloadCSV(content, filename) {
+        // UTF-8 BOM 추가하여 한글 깨짐 방지
+        const BOM = '\uFEFF';
+        content = BOM + content;
+        
+        // 현재 페이지 도메인 가져오기
+        const domain = window.location.hostname;
+        
+        // 현재 날짜 가져오기 (YYYYMMDD 형식)
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const dateStr = `${year}${month}${day}`;
+        
+        // 파일명에 도메인과 날짜 추가
+        const formattedFilename = `${domain}_${dateStr}_${filename}`;
+        
         const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', filename);
+        link.setAttribute('download', formattedFilename);
         link.style.display = 'none';
         document.body.appendChild(link);
         link.click();

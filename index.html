@@ -3,76 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="SEO와 웹접근성 테스트를 위한 페이지입니다">
-    <title>SEO & 웹접근성 체크 북마클릿 테스트</title>
+    <meta name="description" content="SEO와 웹접근성 분석을 위한 강력한 북마클릿 툴">
+    <title>SEO & 웹접근성 체크 북마클릿</title>
     <link rel="stylesheet" href="/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3003/3003111.png">
 </head>
 <body>
-    <header>
-        <h1>SEO & 웹접근성 체크 북마클릿</h1>
-        <p>이 페이지는 북마클릿 테스트를 위한 페이지입니다.</p>
-    </header>
-
-    <main>
-        <section>
-            <h2>북마클릿 설치 방법</h2>
-            <p>아래 링크를 브라우저 북마크바에 드래그하세요:</p>
-            <div class="bookmarklet-container">
-                <a href="javascript:(function(){if(document.getElementById('seo-checker-overlay'))return;const SERVER_URL='http://localhost:3000',cssLink=document.createElement('link');cssLink.rel='stylesheet',cssLink.href=`${SERVER_URL}/css/seo-checker.css`,document.head.appendChild(cssLink);const script=document.createElement('script');script.src=`${SERVER_URL}/js/seo-checker.js?v=${Math.random()}`,document.body.appendChild(script);})();" class="bookmarklet-link">SEO & 웹접근성 체크</a>
+    <div class="page-container">
+        <header class="hero">
+            <div class="hero-content">
+                <h1>SEO & 웹접근성 체크 북마클릿</h1>
+                <p class="hero-subtitle">웹 페이지의 SEO와 접근성을 즉시 분석하는 강력한 툴</p>
+                <div class="cta-buttons">
+                    <a href="javascript:(function(){if(document.getElementById('seo-checker-overlay'))return;const SERVER_URL='http://localhost:3000',cssLink=document.createElement('link');cssLink.rel='stylesheet',cssLink.href=`${SERVER_URL}/css/seo-checker.css`,document.head.appendChild(cssLink);const script=document.createElement('script');script.src=`${SERVER_URL}/js/seo-checker.js?v=${Math.random()}`,document.body.appendChild(script);})();" class="bookmarklet-link primary-btn">북마클릿 설치하기</a>
+                    <a href="#how-to-use" class="secondary-btn">사용 방법</a>
+                </div>
             </div>
-            <p>또는 <a href="/bookmarklet.min.js" target="_blank">이 링크</a>에서 전체 코드를 복사하여 북마크 URL에 직접 입력하세요.</p>
-            
-            <div class="server-info">
-                <h3>서버 정보</h3>
-                <p>이 북마클릿은 서버에서 필요한 코드를 로드하는 방식으로 동작합니다.</p>
-                <p>현재 서버 URL: <code>http://localhost:3000</code></p>
-                <p>실제 사용 환경에서는 이 URL을 실제 서버 주소로 변경해야 합니다.</p>
+            <div class="hero-image">
+                <img src="https://cdn-icons-png.flaticon.com/512/1378/1378598.png" alt="SEO 분석 아이콘" class="floating">
             </div>
-        </section>
+        </header>
 
-        <section>
-            <h2>테스트 콘텐츠</h2>
-            <p>이 섹션은 북마클릿 테스트를 위한 다양한 HTML 요소를 포함합니다.</p>
-            
-            <h3>이미지 테스트</h3>
-            <img src="https://via.placeholder.com/150" alt="적절한 대체 텍스트가 있는 이미지">
-            <img src="https://via.placeholder.com/150" alt="">
-            <img src="https://via.placeholder.com/150">
-            
-            <h3>링크 테스트</h3>
-            <ul>
-                <li><a href="https://example.com">외부 링크</a></li>
-                <li><a href="/internal">내부 링크</a></li>
-                <li><a href="#">앵커 링크</a></li>
-                <li><a>href 없는 링크</a></li>
-            </ul>
-            
-            <h3>헤딩 구조 테스트</h3>
-            <h4>잘못된 순서의 헤딩</h4>
-            <h6>너무 낮은 레벨의 헤딩</h6>
-            
-            <h3>기타 요소</h3>
-            <table>
-                <tr>
-                    <th>헤더 1</th>
-                    <th>헤더 2</th>
-                </tr>
-                <tr>
-                    <td>데이터 1</td>
-                    <td>데이터 2</td>
-                </tr>
-            </table>
-            
-            <form>
-                <label for="name">이름:</label>
-                <input type="text" id="name" name="name">
-                <input type="submit" value="제출">
-            </form>
-        </section>
-    </main>
+        <main>
+            <section id="how-to-use" class="card-section">
+                <h2 class="section-title"><span class="highlight">설치 방법</span></h2>
+                <div class="card-container">
+                    <div class="feature-card">
+                        <div class="card-icon">1</div>
+                        <h3>북마크바 표시</h3>
+                        <p>브라우저의 북마크바를 표시합니다. (Chrome: Ctrl+Shift+B / Mac: Cmd+Shift+B)</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="card-icon">2</div>
+                        <h3>링크 드래그</h3>
+                        <p>아래 버튼을 북마크바로 드래그합니다</p>
+                        <a href="javascript:(function(){if(document.getElementById('seo-checker-overlay'))return;const SERVER_URL='http://localhost:3000',cssLink=document.createElement('link');cssLink.rel='stylesheet',cssLink.href=`${SERVER_URL}/css/seo-checker.css`,document.head.appendChild(cssLink);const script=document.createElement('script');script.src=`${SERVER_URL}/js/seo-checker.js?v=${Math.random()}`,document.body.appendChild(script);})();" class="bookmarklet-link">SEO & 웹접근성 체크</a>
+                    </div>
+                    <div class="feature-card">
+                        <div class="card-icon">3</div>
+                        <h3>실행하기</h3>
+                        <p>분석하고 싶은 웹 페이지에서 북마크를 클릭하면 분석이 시작됩니다</p>
+                    </div>
+                </div>
+                
+                <div class="server-info">
+                    <div class="info-icon">ⓘ</div>
+                    <div class="info-content">
+                        <h3>서버 정보</h3>
+                        <p>이 북마클릿은 서버에서 필요한 코드를 로드하는 방식으로 동작합니다.</p>
+                        <p>현재 서버 URL: <code>http://localhost:3000</code></p>
+                        <p>실제 사용 환경에서는 이 URL을 실제 서버 주소로 변경해야 합니다.</p>
+                    </div>
+                </div>
+            </section>
 
-    <footer>
-        <p>© 2023 SEO & 웹접근성 체크 북마클릿</p>
-    </footer>
+            <section class="features-section">
+                <h2 class="section-title"><span class="highlight">주요 기능</span></h2>
+                <div class="features-grid">
+                    <div class="feature-item">
+                        <div class="feature-icon">📋</div>
+                        <h3>개요 분석</h3>
+                        <p>타이틀, 메타 설명, URL 구조 등 페이지의 기본 SEO 요소를 분석합니다.</p>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🔍</div>
+                        <h3>헤딩 구조</h3>
+                        <p>H1-H6 태그의 계층 구조와 사용 패턴을 검사합니다.</p>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🔗</div>
+                        <h3>링크 분석</h3>
+                        <p>내부/외부 링크, 깨진 링크, 애트리뷰트 사용을 확인합니다.</p>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🖼️</div>
+                        <h3>이미지 검사</h3>
+                        <p>대체 텍스트, 이미지 크기, 형식 등을 확인합니다.</p>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">📊</div>
+                        <h3>구조화 데이터</h3>
+                        <p>Schema.org 구조화 데이터 사용 현황을 분석합니다.</p>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">📱</div>
+                        <h3>소셜 미디어</h3>
+                        <p>OpenGraph, Twitter 카드 메타 태그 설정을 확인합니다.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="demo-section">
+                <h2 class="section-title"><span class="highlight">테스트 영역</span></h2>
+                <p class="section-description">북마클릿 테스트를 위한 다양한 HTML 요소가 포함된 영역입니다.</p>
+                
+                <div class="demo-container">
+                    <div class="demo-column">
+                        <div class="demo-card">
+                            <h3>헤딩 구조 테스트</h3>
+                            <h4>순서대로 나열된 헤딩</h4>
+                            <p>적절한 헤딩 구조를 위해 순차적으로 사용합니다.</p>
+                            <h5>하위 헤딩 예시</h5>
+                            <p>H5 태그 사용 예시입니다.</p>
+                            <h4>잘못된 순서 예시</h4>
+                            <h6>너무 낮은 레벨의 헤딩</h6>
+                        </div>
+                        
+                        <div class="demo-card">
+                            <h3>링크 테스트</h3>
+                            <ul class="feature-list">
+                                <li><a href="https://example.com" target="_blank" rel="noopener">외부 링크</a></li>
+                                <li><a href="/internal">내부 링크</a></li>
+                                <li><a href="#">앵커 링크</a></li>
+                                <li><a>href 없는 링크</a></li>
+                                <li><a href="javascript:void(0)">자바스크립트 링크</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-column">
+                        <div class="demo-card">
+                            <h3>이미지 테스트</h3>
+                            <div class="image-gallery">
+                                <figure>
+                                    <img src="https://via.placeholder.com/150" alt="적절한 대체 텍스트가 있는 이미지">
+                                    <figcaption>alt 속성이 있는 이미지</figcaption>
+                                </figure>
+                                <figure>
+                                    <img src="https://via.placeholder.com/150" alt="">
+                                    <figcaption>빈 alt 속성</figcaption>
+                                </figure>
+                                <figure>
+                                    <img src="https://via.placeholder.com/150">
+                                    <figcaption>alt 속성 없음</figcaption>
+                                </figure>
+                            </div>
+                        </div>
+                        
+                        <div class="demo-card">
+                            <h3>기타 요소</h3>
+                            <table class="demo-table">
+                                <thead>
+                                    <tr>
+                                        <th>헤더 1</th>
+                                        <th>헤더 2</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>데이터 1</td>
+                                        <td>데이터 2</td>
+                                    </tr>
+                                    <tr>
+                                        <td>데이터 3</td>
+                                        <td>데이터 4</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            <form class="demo-form">
+                                <div class="form-group">
+                                    <label for="name">이름:</label>
+                                    <input type="text" id="name" name="name" placeholder="이름을 입력하세요">
+                                </div>
+                                <button type="submit" class="secondary-btn">제출</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <h2>SEO & 웹접근성 체크</h2>
+                    <p>웹사이트 최적화를 위한 필수 도구</p>
+                </div>
+                <div class="footer-links">
+                    <h3>유용한 링크</h3>
+                    <ul>
+                        <li><a href="https://developers.google.com/search/docs" target="_blank" rel="noopener">Google SEO 가이드</a></li>
+                        <li><a href="https://www.w3.org/WAI/fundamentals/accessibility-intro/" target="_blank" rel="noopener">웹 접근성 소개</a></li>
+                        <li><a href="https://schema.org/" target="_blank" rel="noopener">Schema.org</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="copyright">
+                <p>© 2023 SEO & 웹접근성 체크 북마클릿</p>
+            </div>
+        </footer>
+    </div>
 </body>
 </html> 
