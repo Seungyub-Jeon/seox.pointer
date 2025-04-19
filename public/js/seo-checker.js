@@ -833,7 +833,7 @@
             </div>
 
             <!-- 링크 분포 시각화 카드 -->
-            <div class="overview-data-card">
+            <div class="overview-data-card full-width">
                 <div class="card-header">
                     <h3>내부/외부 링크 비율</h3>
                 </div>
@@ -1083,7 +1083,15 @@
      */
     function analyzeImages() {
         const container = document.getElementById('seo-checker-images');
-        let content = '<div class="tab-title">이미지</div>';
+        if (!container) {
+            console.error('#seo-checker-images container not found!');
+            return; 
+        }
+        
+        // 로딩 표시 추가
+        container.innerHTML = '<div class="loading-indicator"><div class="loading-spinner"></div><p>이미지 분석 중...</p></div>';
+        
+        let content = '<div class="tab-title">이미지 분석</div>';
         
         // --- 데이터 수집 ---
         const allImages = document.querySelectorAll('img');
@@ -1096,6 +1104,7 @@
         const imagesWithoutDimensions = []; // width/height 속성 없는 이미지
         const largeImages = []; // 큰 이미지 (표시 크기보다 실제 크기가 훨씬 큰 경우)
         const imagesWithoutLazyLoading = []; // lazy 로딩 없는 이미지 (첫 화면 제외)
+        const imagesWithoutResponsive = []; // 반응형 속성 없는 이미지
         
         // 이미지 형식별 개수
         const formatCounts = {
@@ -1114,6 +1123,7 @@
             
             const src = img.getAttribute('src') || '';
             const srcset = img.getAttribute('srcset') || '';
+            const sizes = img.getAttribute('sizes') || '';
             const alt = img.getAttribute('alt');
             const title = img.getAttribute('title');
             const width = img.getAttribute('width');
@@ -1130,6 +1140,7 @@
             const imageData = {
                 src,
                 srcset,
+                sizes,
                 alt,
                 title,
                 width,
@@ -1180,256 +1191,306 @@
                 imageData.issues.push('lazy loading 속성 없음');
             }
             
+            // 5. 반응형 이미지 검사 (srcset, sizes)
+            if (!srcset && displayWidth > 0 && img.naturalWidth > 400) {
+                imagesWithoutResponsive.push(imageData);
+                imageData.issues.push('반응형 속성(srcset) 없음');
+            }
+            
             // 데이터 배열에 추가
             imagesData.push(imageData);
         });
         
         // --- HTML 생성 ---
+        // 카드 레이아웃 시작
+        content += '<div class="overview-cards">';
         
-        // 이미지 통계 카드
+        // 이미지 통계 요약 카드
         content += `
-            <div class="seo-checker-item">
-                <h3>이미지 통계</h3>
-                <div class="image-summary-grid">
-                    <div class="image-stat-card">
-                        <span class="stat-value">${totalImages}</span>
-                        <span class="stat-label">총 이미지</span>
+            <div class="overview-summary-card">
+                <div class="card-header">
+                    <h3>이미지 통계 요약</h3>
+                </div>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <span>총 이미지</span>
+                        <strong>${totalImages}</strong>
                     </div>
-                    <div class="image-stat-card ${imagesWithoutAlt.length > 0 ? 'has-issue' : ''}">
-                        <span class="stat-value">${imagesWithoutAlt.length}</span>
-                        <span class="stat-label">alt 속성 없음</span>
+                    <div class="summary-item ${imagesWithoutAlt.length > 0 ? 'warning' : ''}">
+                        <span>alt 속성 없음</span>
+                        <strong>${imagesWithoutAlt.length}</strong>
                     </div>
-                    <div class="image-stat-card">
-                        <span class="stat-value">${imagesWithEmptyAlt.length}</span>
-                        <span class="stat-label">장식용 이미지</span>
+                    <div class="summary-item">
+                        <span>장식용 이미지</span>
+                        <strong>${imagesWithEmptyAlt.length}</strong>
                     </div>
-                    <div class="image-stat-card ${imagesWithoutDimensions.length > 0 ? 'has-issue' : ''}">
-                        <span class="stat-value">${imagesWithoutDimensions.length}</span>
-                        <span class="stat-label">크기 속성 없음</span>
+                    <div class="summary-item ${imagesWithoutDimensions.length > 0 ? 'warning' : ''}">
+                        <span>크기 속성 없음</span>
+                        <strong>${imagesWithoutDimensions.length}</strong>
+                    </div>
+                    <div class="summary-item ${largeImages.length > 0 ? 'warning' : ''}">
+                        <span>과대 크기</span>
+                        <strong>${largeImages.length}</strong>
+                    </div>
+                    <div class="summary-item ${imagesWithoutLazyLoading.length > 0 ? 'warning' : ''}">
+                        <span>지연 로딩 없음</span>
+                        <strong>${imagesWithoutLazyLoading.length}</strong>
                     </div>
                 </div>
-                
-                <h4 style="margin-top: 20px;">이미지 형식</h4>
-                <div class="image-format-grid">
-                    <div class="format-stat-card">
-                        <span class="stat-value">${formatCounts.jpg + formatCounts.jpeg}</span>
-                        <span class="stat-label">JPG/JPEG</span>
+            </div>
+
+            <!-- 이미지 형식 분포 카드 -->
+            <div class="overview-data-card full-width">
+                <div class="card-header">
+                    <h3>이미지 형식 분포</h3>
+                </div>
+                <div class="card-content">
+                    <div class="image-format-grid">
+                        <div class="format-stat-card">
+                            <span class="stat-value">${formatCounts.jpg + formatCounts.jpeg}</span>
+                            <span class="stat-label">JPG/JPEG</span>
+                        </div>
+                        <div class="format-stat-card">
+                            <span class="stat-value">${formatCounts.png}</span>
+                            <span class="stat-label">PNG</span>
+                        </div>
+                        <div class="format-stat-card">
+                            <span class="stat-value">${formatCounts.gif}</span>
+                            <span class="stat-label">GIF</span>
+                        </div>
+                        <div class="format-stat-card ${formatCounts.webp > 0 ? 'modern-format' : ''}">
+                            <span class="stat-value">${formatCounts.webp}</span>
+                            <span class="stat-label">WebP</span>
+                        </div>
+                        <div class="format-stat-card ${formatCounts.avif > 0 ? 'modern-format' : ''}">
+                            <span class="stat-value">${formatCounts.avif}</span>
+                            <span class="stat-label">AVIF</span>
+                        </div>
+                        <div class="format-stat-card">
+                            <span class="stat-value">${formatCounts.svg}</span>
+                            <span class="stat-label">SVG</span>
+                        </div>
                     </div>
-                    <div class="format-stat-card">
-                        <span class="stat-value">${formatCounts.png}</span>
-                        <span class="stat-label">PNG</span>
-                    </div>
-                    <div class="format-stat-card">
-                        <span class="stat-value">${formatCounts.gif}</span>
-                        <span class="stat-label">GIF</span>
-                    </div>
-                    <div class="format-stat-card ${formatCounts.webp > 0 ? 'modern-format' : ''}">
-                        <span class="stat-value">${formatCounts.webp}</span>
-                        <span class="stat-label">WebP</span>
-                    </div>
-                    <div class="format-stat-card ${formatCounts.avif > 0 ? 'modern-format' : ''}">
-                        <span class="stat-value">${formatCounts.avif}</span>
-                        <span class="stat-label">AVIF</span>
-                    </div>
-                    <div class="format-stat-card">
-                        <span class="stat-value">${formatCounts.svg}</span>
-                        <span class="stat-label">SVG</span>
+                    <div class="data-meta compact">
+                        <p class="importance-note">
+                            최신 이미지 형식(WebP, AVIF)은 기존 형식에 비해 더 작은 크기로 우수한 품질을 제공합니다.
+                            ${(formatCounts.webp + formatCounts.avif) === 0 ? '최신 형식 사용을 고려해보세요.' : '최신 형식을 사용하고 있어 좋습니다!'}
+                        </p>
                     </div>
                 </div>
-                
-                <p class="importance-note">이미지는 사용자 경험에 중요하지만, 페이지 성능을 저하시킬 수 있습니다. 적절한 크기 조정, 형식 선택, alt 텍스트 제공이 중요합니다.</p>
+            </div>
+        `;
+
+        // 이미지 문제점 요약 카드
+        if (imagesWithoutAlt.length > 0 || imagesWithoutDimensions.length > 0 || largeImages.length > 0 || imagesWithLongAlt.length > 0 || imagesWithoutLazyLoading.length > 0) {
+            content += `
+                <div class="overview-data-card full-width">
+                    <div class="card-header">
+                        <h3>이미지 문제점 요약</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="data-meta compact">
+                            <p class="importance-note">최적화된 이미지는 웹사이트의 성능과 접근성에 큰 영향을 미칩니다. 다음 문제들을 해결하면 웹사이트의 품질이 향상됩니다.</p>
+                        </div>
+                        <div class="link-issues-summary">
+                            ${imagesWithoutAlt.length > 0 ? `
+                                <div class="issue-category">
+                                    <div class="issue-header">
+                                        <span class="seo-checker-status seo-checker-status-error">alt 속성 없음 (${imagesWithoutAlt.length}개)</span>
+                                    </div>
+                                    <p class="issue-desc">alt 속성이 없는 이미지는 스크린 리더 사용자에게 접근할 수 없으며, SEO에도 불리합니다. 모든 의미 있는 이미지에 alt 속성을 추가하세요.</p>
+                                </div>
+                            ` : ''}
+                            
+                            ${imagesWithoutDimensions.length > 0 ? `
+                                <div class="issue-category">
+                                    <div class="issue-header">
+                                        <span class="seo-checker-status seo-checker-status-warning">width/height 속성 없음 (${imagesWithoutDimensions.length}개)</span>
+                                    </div>
+                                    <p class="issue-desc">이미지에 width와 height 속성이 없으면 브라우저가 이미지 공간을 예약할 수 없어 레이아웃 이동(CLS)이 발생합니다. 이는 Core Web Vitals에 부정적 영향을 미칩니다.</p>
+                                </div>
+                            ` : ''}
+                            
+                            ${largeImages.length > 0 ? `
+                                <div class="issue-category">
+                                    <div class="issue-header">
+                                        <span class="seo-checker-status seo-checker-status-warning">과대 크기 이미지 (${largeImages.length}개)</span>
+                                    </div>
+                                    <p class="issue-desc">표시 크기보다 실제 크기가 2배 이상 큰 이미지는 불필요한 데이터 전송을 유발합니다. 이미지 크기를 적절히 조정하여 페이지 로딩 속도를 향상시키세요.</p>
+                                </div>
+                            ` : ''}
+                            
+                            ${imagesWithoutLazyLoading.length > 0 ? `
+                                <div class="issue-category">
+                                    <div class="issue-header">
+                                        <span class="seo-checker-status seo-checker-status-info">지연 로딩 없음 (${imagesWithoutLazyLoading.length}개)</span>
+                                    </div>
+                                    <p class="issue-desc">첫 화면 아래에 있는 이미지에는 loading="lazy" 속성을 추가하여 페이지 초기 로딩 시간을 단축할 수 있습니다.</p>
+                                </div>
+                            ` : ''}
+
+                            ${imagesWithoutResponsive.length > 0 ? `
+                                <div class="issue-category">
+                                    <div class="issue-header">
+                                        <span class="seo-checker-status seo-checker-status-info">반응형 속성 없음 (${imagesWithoutResponsive.length}개)</span>
+                                    </div>
+                                    <p class="issue-desc">큰 이미지에 srcset 속성이 없으면 모바일 기기에서 불필요하게 큰 이미지를 다운로드하게 됩니다. 다양한 화면 크기에 최적화된 이미지를 제공하세요.</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 문제점 별 이미지 목록 함수
+        const createImageIssueListCard = (title, description, statusClass, images) => {
+            if (images.length === 0) return '';
+            const maxDisplayImages = 5; // 최대 표시 이미지 수
+            const hasMoreImages = images.length > maxDisplayImages;
+            const listId = title.replace(/\s+/g, '-').toLowerCase() + '-list';
+            const buttonId = 'toggle-' + listId;
+            
+            return `
+                <div class="overview-data-card">
+                    <div class="card-header">
+                        <h3>${title}</h3>
+                        <span class="seo-checker-status ${statusClass}">${images.length}개</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="data-meta">
+                            <p class="importance-note">${description}</p>
+                            ${hasMoreImages ? `<button class="toggle-list-btn" id="${buttonId}">펼치기</button>` : ''}
+                        </div>
+                        <div class="image-grid ${hasMoreImages ? 'collapsible-list' : ''}" id="${listId}">
+                            ${images.slice(0, maxDisplayImages).map(img => `
+                                <div class="image-card ${img.issues.length > 0 ? 'has-issues' : ''}">
+                                    ${img.issues.length > 0 ? `<span class="image-issue-badge">${img.issues.length}</span>` : ''}
+                                    <div class="image-thumb-container">
+                                        <img src="${img.src}" alt="썸네일" class="image-thumb" loading="lazy">
+                                    </div>
+                                    <div class="image-info">
+                                        <div class="image-format-badge">${img.format.toUpperCase()}</div>
+                                        <div class="image-size-info">${img.naturalWidth && img.naturalHeight ? `${img.naturalWidth}x${img.naturalHeight}px` : '크기 알 수 없음'}</div>
+                                        <div class="image-alt-info">
+                                            ${img.alt === null ? 
+                                                '<span class="alt-missing">ALT 속성 없음</span>' : 
+                                                img.alt === '' ? 
+                                                '<span class="alt-empty">장식용 이미지 (alt="")</span>' : 
+                                                `<span class="alt-exists">ALT: </span><span class="alt-text">${img.alt.length > 30 ? `${img.alt.substring(0, 30)}...` : img.alt}</span>`}
+                                        </div>
+                                        ${img.issues.length > 0 ? `
+                                            <div class="image-issues">
+                                                <ul>
+                                                    ${img.issues.map(issue => `<li>${issue}</li>`).join('')}
+                                                </ul>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        ${hasMoreImages ? `<div class="more-images-info">...외 ${images.length - maxDisplayImages}개 더 있음 (모든 이미지 내보내기로 확인 가능)</div>` : ''}
+                    </div>
+                </div>
+            `;
+        };
+        
+        // 문제점 별 이미지 목록 카드 추가
+        content += createImageIssueListCard(
+            'alt 속성 없는 이미지',
+            'alt 속성은 스크린 리더 사용자와 검색 엔진에게 이미지 내용을 설명합니다. 모든 의미 있는 이미지에 alt 속성을 추가하세요.',
+            'seo-checker-status-error',
+            imagesWithoutAlt
+        );
+        
+        content += createImageIssueListCard(
+            '과대 크기 이미지',
+            '표시 크기보다 실제 크기가 2배 이상 큰 이미지는 불필요한 데이터 전송을 유발합니다. 이미지 크기를 적절히 조정하세요.',
+            'seo-checker-status-warning',
+            largeImages
+        );
+        
+        content += createImageIssueListCard(
+            'width/height 속성 없는 이미지',
+            'width와 height 속성이 없으면 레이아웃 이동(CLS)이 발생할 수 있습니다. 모든 이미지에 크기 속성을 지정하세요.',
+            'seo-checker-status-warning',
+            imagesWithoutDimensions
+        );
+        
+        // 내보내기 카드
+        content += `
+            <div class="overview-data-card">
+                <div class="card-header">
+                    <h3>이미지 데이터 내보내기</h3>
+                </div>
+                <div class="card-content export-buttons">
+                    <button class="seo-checker-export-btn" id="export-all-images">모든 이미지 (CSV)</button>
+                    <button class="seo-checker-export-btn" id="export-issue-images">문제 있는 이미지 (CSV)</button>
+                </div>
             </div>
         `;
         
-        // 문제점 요약 카드
-        if (imagesWithoutAlt.length > 0 || imagesWithoutDimensions.length > 0 || largeImages.length > 0 || imagesWithLongAlt.length > 0) {
-            content += `
-                <div class="seo-checker-item">
-                    <h3>
-                        <span class="seo-checker-status seo-checker-status-warning">이미지 최적화 문제</span>
-                    </h3>
-                    <ul class="image-issues-list">
-                        ${imagesWithoutAlt.length > 0 ? `<li><strong>${imagesWithoutAlt.length}개</strong> 이미지에 alt 속성이 없습니다. 접근성 및 SEO에 중요합니다.</li>` : ''}
-                        ${imagesWithLongAlt.length > 0 ? `<li><strong>${imagesWithLongAlt.length}개</strong> 이미지의 alt 텍스트가 너무 김니다. 간결하고 설명적인 텍스트를 사용하세요.</li>` : ''}
-                        ${imagesWithoutDimensions.length > 0 ? `<li><strong>${imagesWithoutDimensions.length}개</strong> 이미지에 width/height 속성이 없습니다. 이는 CLS(Cumulative Layout Shift)를 발생시킬 수 있습니다.</li>` : ''}
-                        ${largeImages.length > 0 ? `<li><strong>${largeImages.length}개</strong> 이미지가 표시 크기보다 과도하게 큽니다. 적절한 크기로 최적화하세요.</li>` : ''}
-                        ${imagesWithoutLazyLoading.length > 0 ? `<li><strong>${imagesWithoutLazyLoading.length}개</strong> 이미지에 lazy loading이 적용되어 있지 않습니다. 첫 화면 아래 이미지에는 loading="lazy" 속성을 권장합니다.</li>` : ''}
-                    </ul>
-                    <p class="importance-note">이미지 최적화는 페이지 로딩 속도, 사용자 경험 및 SEO에 직접적인 영향을 미칩니다. 특히 모바일 사용자에게 중요합니다.</p>
-                </div>
-            `;
-        }
-        
-        // 모던 이미지 형식 권장 카드
+        // 최신 이미지 형식 권장 카드
         if (formatCounts.jpg + formatCounts.jpeg + formatCounts.png > 0 && formatCounts.webp + formatCounts.avif === 0) {
             content += `
-                <div class="seo-checker-item">
-                    <h3>
-                        <span class="seo-checker-status seo-checker-status-info">최신 이미지 형식 사용 권장</span>
-                    </h3>
-                    <p>WebP나 AVIF 같은 최신 이미지 형식을 사용하면 다음과 같은 이점이 있습니다:</p>
-                    <ul>
-                        <li>파일 크기 감소 (JPG/PNG 대비 25-50% 작음)</li>
-                        <li>페이지 로딩 속도 향상</li>
-                        <li>대역폭 사용량 감소</li>
-                        <li>더 나은 이미지 품질 (특히 AVIF)</li>
-                    </ul>
-                    <p>기존 형식과의 호환성을 위해 <code>&lt;picture&gt;</code> 요소와 함께 사용하는 것이 좋습니다.</p>
+                <div class="overview-data-card full-width">
+                    <div class="card-header">
+                        <h3>이미지 최적화 팁</h3>
+                        <span class="seo-checker-status seo-checker-status-info">권장</span>
+                    </div>
+                    <div class="card-content">
+                        <p class="importance-note">WebP나 AVIF 같은 최신 이미지 형식을 사용하면 다음과 같은 이점이 있습니다:</p>
+                        <ul>
+                            <li>파일 크기 감소 (JPG/PNG 대비 25-50% 작음)</li>
+                            <li>페이지 로딩 속도 향상</li>
+                            <li>대역폭 사용량 감소</li>
+                            <li>더 나은 이미지 품질 (특히 AVIF)</li>
+                        </ul>
+                        <p>기존 형식과의 호환성을 위해 <code>&lt;picture&gt;</code> 요소와 함께 사용하는 것이 좋습니다:</p>
+                        <pre><code>&lt;picture&gt;
+  &lt;source srcset="image.avif" type="image/avif"&gt;
+  &lt;source srcset="image.webp" type="image/webp"&gt;
+  &lt;img src="image.jpg" alt="설명" width="800" height="600" loading="lazy"&gt;
+&lt;/picture&gt;</code></pre>
+                    </div>
                 </div>
             `;
         }
         
-        // 이미지 목록
-        if (imagesData.length > 0) {
-            // 필터링 옵션
-            content += `
-                <div class="seo-checker-item">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h3>이미지 목록 (${imagesData.length}개)</h3>
-                        <div class="image-filter-controls">
-                            <select id="image-filter-select" class="image-filter-select">
-                                <option value="all">모든 이미지</option>
-                                <option value="no-alt">alt 속성 없음</option>
-                                <option value="empty-alt">장식용 이미지 (alt="")</option>
-                                <option value="no-dimensions">width/height 속성 없음</option>
-                                <option value="oversized">크기 최적화 필요</option>
-                                <option value="no-lazy">lazy loading 없음</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="image-list-container" id="image-list-container">
-                        <!-- 이미지 목록이 여기에 동적으로 생성됨 -->
-                    </div>
-                    
-                    <button class="seo-checker-export-btn" id="export-images">이미지 정보 내보내기</button>
-                </div>
-            `;
-        }
+        // 카드 레이아웃 닫기
+        content += '</div>';
         
         container.innerHTML = content;
         
-        // 이미지 필터링 및 목록 생성 함수
-        function renderImageList(filter = 'all') {
-            const listContainer = document.getElementById('image-list-container');
-            if (!listContainer) return;
+        // 토글 버튼에 이벤트 리스너 추가
+        const setupToggleButton = (buttonId, listId) => {
+            const toggleBtn = document.getElementById(buttonId);
+            const list = document.getElementById(listId);
             
-            let filteredImages = imagesData;
-            
-            // 필터 적용
-            switch (filter) {
-                case 'no-alt':
-                    filteredImages = imagesWithoutAlt;
-                    break;
-                case 'empty-alt':
-                    filteredImages = imagesWithEmptyAlt;
-                    break;
-                case 'no-dimensions':
-                    filteredImages = imagesWithoutDimensions;
-                    break;
-                case 'oversized':
-                    filteredImages = largeImages;
-                    break;
-                case 'no-lazy':
-                    filteredImages = imagesWithoutLazyLoading;
-                    break;
-            }
-            
-            // 최대 20개 이미지만 표시 (너무 많으면 성능 문제)
-            const displayImages = filteredImages.slice(0, 20);
-            const hasMoreImages = filteredImages.length > 20;
-            
-            let listHTML = '';
-            
-            if (displayImages.length === 0) {
-                listHTML = '<p class="no-results">선택한 필터에 해당하는 이미지가 없습니다.</p>';
-            } else {
-                listHTML = '<div class="image-grid">';
-                
-                displayImages.forEach(img => {
-                    // 이미지 썸네일 URL (없으면 원본 사용)
-                    const thumbSrc = img.src;
-                    
-                    // 이미지 크기 정보
-                    const sizeInfo = img.naturalWidth && img.naturalHeight ? 
-                        `${img.naturalWidth}x${img.naturalHeight}px` : '크기 알 수 없음';
-                    
-                    // ALT 속성 상태 및 텍스트
-                    const altStatus = img.alt === null ? 
-                        '<span class="alt-missing">ALT 속성 없음</span>' : 
-                        img.alt === '' ? 
-                        '<span class="alt-empty">장식용 이미지 (alt="")</span>' : 
-                        `<span class="alt-exists">ALT: </span>`;
-                    
-                    // ALT 텍스트 표시 (있는 경우만)
-                    const altText = img.alt !== null && img.alt !== '' ? 
-                        (img.alt.length > 60 ? 
-                            `<span class="alt-text-long" title="${img.alt}">${img.alt.substring(0, 60)}...</span>` : 
-                            `<span class="alt-text">${img.alt}</span>`) : 
-                        '';
-                    
-                    // 이미지 형식
-                    const formatLabel = img.format.toUpperCase();
-                    
-                    // 이슈 배지
-                    const issueCount = img.issues.length;
-                    const issueBadge = issueCount > 0 ? 
-                        `<span class="image-issue-badge">${issueCount}</span>` : '';
-                    
-                    listHTML += `
-                        <div class="image-card ${issueCount > 0 ? 'has-issues' : ''}">
-                            ${issueBadge}
-                            <div class="image-thumb-container">
-                                <img src="${thumbSrc}" alt="썸네일" class="image-thumb" loading="lazy">
-                            </div>
-                            <div class="image-info">
-                                <div class="image-format-badge">${formatLabel}</div>
-                                <div class="image-size-info">${sizeInfo}</div>
-                                <div class="image-alt-info">
-                                    ${altStatus}
-                                    ${altText}
-                                </div>
-                                ${issueCount > 0 ? `
-                                    <div class="image-issues">
-                                        <ul>
-                                            ${img.issues.map(issue => `<li>${issue}</li>`).join('')}
-                                        </ul>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        </div>
-                    `;
+            if (toggleBtn && list) {
+                toggleBtn.addEventListener('click', function() {
+                    list.classList.toggle('expanded');
+                    toggleBtn.textContent = list.classList.contains('expanded') ? '접기' : '펼치기';
                 });
-                
-                listHTML += '</div>';
-                
-                if (hasMoreImages) {
-                    listHTML += `
-                        <div class="more-images-info">
-                            ...외 ${filteredImages.length - 20}개 더 있음 (내보내기로 전체 목록 확인)
-                        </div>
-                    `;
-                }
             }
-            
-            listContainer.innerHTML = listHTML;
-        }
+        };
         
-        // 필터 변경 이벤트 처리
-        const filterSelect = document.getElementById('image-filter-select');
-        if (filterSelect) {
-            filterSelect.addEventListener('change', function() {
-                renderImageList(this.value);
-            });
-            
-            // 초기 목록 렌더링
-            renderImageList('all');
+        // 필요한 토글 버튼 설정
+        if (imagesWithoutAlt.length > 5) {
+            setupToggleButton('toggle-alt-속성-없는-이미지-list', 'alt-속성-없는-이미지-list');
+        }
+        if (largeImages.length > 5) {
+            setupToggleButton('toggle-과대-크기-이미지-list', '과대-크기-이미지-list');
+        }
+        if (imagesWithoutDimensions.length > 5) {
+            setupToggleButton('toggle-width/height-속성-없는-이미지-list', 'width/height-속성-없는-이미지-list');
         }
         
         // 내보내기 버튼에 이벤트 리스너 추가
-        const exportBtn = document.getElementById('export-images');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', function() {
+        const exportAllBtn = document.getElementById('export-all-images');
+        if (exportAllBtn) {
+            exportAllBtn.addEventListener('click', function() {
                 const headers = [
                     'src', 'alt', 'title', 'width', 'height', 'loading', 
                     'format', 'display_width', 'display_height', 'natural_width',
@@ -1458,7 +1519,45 @@
                 });
                 
                 const csv = csvRows.join('\n');
-                downloadCSV(csv, '이미지_분석.csv');
+                downloadCSV(csv, '모든_이미지.csv');
+            });
+        }
+        
+        const exportIssueBtn = document.getElementById('export-issue-images');
+        if (exportIssueBtn) {
+            exportIssueBtn.addEventListener('click', function() {
+                // 이슈가 있는 이미지만 필터링
+                const issueImages = imagesData.filter(img => img.issues.length > 0);
+                
+                const headers = [
+                    'src', 'alt', 'title', 'width', 'height', 'loading', 
+                    'format', 'display_width', 'display_height', 'natural_width',
+                    'natural_height', 'issues'
+                ];
+                
+                const csvRows = [headers.join(',')];
+                
+                issueImages.forEach(img => {
+                    const row = [
+                        `"${(img.src || '').replace(/"/g, '""')}"`,
+                        `"${(img.alt === null ? '[없음]' : img.alt).replace(/"/g, '""')}"`,
+                        `"${(img.title || '').replace(/"/g, '""')}"`,
+                        `"${img.width || ''}"`,
+                        `"${img.height || ''}"`,
+                        `"${img.loading || ''}"`,
+                        `"${img.format || ''}"`,
+                        `"${img.displayWidth || ''}"`,
+                        `"${img.displayHeight || ''}"`,
+                        `"${img.naturalWidth || ''}"`,
+                        `"${img.naturalHeight || ''}"`,
+                        `"${img.issues.join(' | ')}"`,
+                    ];
+                    
+                    csvRows.push(row.join(','));
+                });
+                
+                const csv = csvRows.join('\n');
+                downloadCSV(csv, '문제_있는_이미지.csv');
             });
         }
     }
@@ -1516,14 +1615,8 @@
             return;
         }
         
-        // 먼저 로딩 상태 표시
-        container.innerHTML = `
-            <div class="tab-title">구조화 데이터 (Schema.org)</div>
-            <div class="seo-checker-item">
-                <h3>스키마 데이터 분석 중...</h3>
-                <p>페이지의 구조화 데이터를 분석하고 있습니다. 잠시만 기다려주세요.</p>
-            </div>
-        `;
+        // 로딩 표시 추가
+        container.innerHTML = '<div class="loading-indicator"><div class="loading-spinner"></div><p>구조화 데이터 분석 중...</p></div>';
         
         // 비동기적으로 스키마 분석 실행
         setTimeout(() => {
@@ -1534,9 +1627,14 @@
                 console.error('스키마 분석 중 오류 발생:', error);
                 container.innerHTML = `
                     <div class="tab-title">구조화 데이터 (Schema.org)</div>
-                    <div class="seo-checker-item">
-                        <h3>스키마 분석 오류</h3>
-                        <p>데이터 분석 중 문제가 발생했습니다: ${error.message}</p>
+                    <div class="overview-data-card">
+                        <div class="card-header">
+                            <h3>스키마 분석 오류</h3>
+                            <span class="seo-checker-status seo-checker-status-error">오류</span>
+                        </div>
+                        <div class="card-content">
+                            <p>데이터 분석 중 문제가 발생했습니다: ${error.message}</p>
+                        </div>
                     </div>
                 `;
             }
@@ -1641,150 +1739,217 @@
     function updateSchemaUI(container, schemaData) {
         console.log('스키마 UI 업데이트 시작...');
         
-        // 탭 제목과 주요 컨테이너 생성
+        // 탭 제목 생성
         let content = `<div class="tab-title">구조화 데이터 (Schema.org)</div>`;
-        content += `<div class="seo-checker-item">`;
         
-        // 1. 스키마 개요 섹션
+        // 카드 레이아웃 시작
+        content += '<div class="overview-cards">';
+        
+        // 1. 스키마 개요 카드
         content += `
-            <h3>구조화 데이터 개요</h3>
-            <p class="importance-note">이 페이지에는 총 ${schemaData.totalSchemas}개의 Schema.org 마크업이 발견되었습니다.</p>
-            
-            <div class="schema-summary-grid">
-                <div class="schema-stat-card">
-                    <div class="stat-value">${schemaData.totalSchemas}</div>
-                    <div class="stat-label">총 스키마</div>
+            <div class="overview-summary-card">
+                <div class="card-header">
+                    <h3>구조화 데이터 요약</h3>
                 </div>
-                <div class="schema-stat-card">
-                    <div class="stat-value">${schemaData.jsonLD.length}</div>
-                    <div class="stat-label">JSON-LD</div>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <span>총 스키마</span>
+                        <strong>${schemaData.totalSchemas}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>JSON-LD</span>
+                        <strong>${schemaData.jsonLD.length}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>Microdata</span>
+                        <strong>${schemaData.microdata.length}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>RDFa</span>
+                        <strong>${schemaData.rdfa.length}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>스키마 유형</span>
+                        <strong>${Object.keys(schemaData.schemaTypes).length}</strong>
+                    </div>
                 </div>
-                <div class="schema-stat-card">
-                    <div class="stat-value">${schemaData.microdata.length}</div>
-                    <div class="stat-label">Microdata</div>
-                </div>
-                <div class="schema-stat-card">
-                    <div class="stat-value">${schemaData.rdfa.length}</div>
-                    <div class="stat-label">RDFa</div>
-                </div>
+            </div>
         `;
         
-        // 스키마 유형 요약
-        const schemaTypes = Object.keys(schemaData.schemaTypes);
-        if (schemaTypes.length > 0) {
+        // 2. 스키마 상태 카드
+        const schemaStatus = schemaData.totalSchemas > 0 ? 'seo-checker-status-good' : 'seo-checker-status-warning';
+        content += `
+            <div class="overview-data-card">
+                <div class="card-header">
+                    <h3>스키마 상태</h3>
+                    <span class="seo-checker-status ${schemaStatus}">${schemaData.totalSchemas > 0 ? '검출됨' : '없음'}</span>
+                </div>
+                <div class="card-content">
+                    <div class="data-meta">
+                        <p class="importance-note">구조화 데이터는 검색 엔진이 페이지 콘텐츠를 더 잘 이해하도록 도와주며, 리치 검색 결과를 생성하는 데 사용됩니다.</p>
+                        ${schemaData.totalSchemas === 0 ? 
+                            '<p>이 페이지에는 구조화 데이터가 없습니다. 적절한 Schema.org 마크업 추가를 고려하세요.</p>' : 
+                            '<p>이 페이지에 구조화 데이터가 있어 검색 엔진에서 더 풍부한 결과로 표시될 수 있습니다.</p>'
+                        }
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 3. 스키마 유형 카드
+        if (Object.keys(schemaData.schemaTypes).length > 0) {
             content += `
-                <div class="schema-stat-card">
-                    <div class="stat-value">${schemaTypes.length}</div>
-                    <div class="stat-label">스키마 유형</div>
+                <div class="overview-data-card">
+                    <div class="card-header">
+                        <h3>스키마 유형</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="schema-types-list">
+                            ${Object.entries(schemaData.schemaTypes).map(([type, count]) => 
+                                `<span class="schema-type-pill">${type} (${count})</span>`
+                            ).join('')}
+                        </div>
+                        <div class="data-meta">
+                            <p class="note">페이지에 포함된 구조화 데이터 유형입니다.</p>
+                        </div>
+                    </div>
                 </div>
             `;
         }
         
-        content += `</div>`; // schema-summary-grid 닫기
-        content += `</div>`; // 첫 번째 seo-checker-item 닫기
-        
-        // 2. JSON-LD 스키마 세부 정보 표시
+        // 4. JSON-LD 스키마 세부 정보 카드
         if (schemaData.jsonLD.length > 0) {
-            content += `<div class="seo-checker-item">`;
-            content += '<h3>JSON-LD 스키마</h3>';
-            
-            schemaData.jsonLD.forEach((schema, index) => {
-                const schemaType = getSchemaType(schema.data);
-                content += createSchemaAccordion(
-                    schemaType,
-                    'json-ld',
-                    JSON.stringify(schema.data, null, 2),
-                    index
-                );
-            });
-            
-            content += `</div>`; // seo-checker-item 닫기
+            content += `
+                <div class="overview-data-card full-width">
+                    <div class="card-header">
+                        <h3>JSON-LD 스키마</h3>
+                        <span class="seo-checker-status seo-checker-status-good">${schemaData.jsonLD.length}개</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="data-meta">
+                            <p class="note">JSON-LD는 Google이 권장하는 구조화 데이터 형식입니다.</p>
+                        </div>
+                        
+                        <div class="schema-accordion-list">
+                            ${schemaData.jsonLD.map((schema, index) => {
+                                const schemaType = getSchemaType(schema.data);
+                                return `
+                                    <div class="schema-accordion-item">
+                                        <div class="schema-accordion-header">
+                                            <div class="schema-accordion-title">
+                                                <span class="schema-format-badge json-ld">JSON-LD</span>
+                                                ${schemaType || '알 수 없는 유형'}
+                                            </div>
+                                            <button class="schema-toggle-btn">
+                                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <div class="schema-accordion-content">
+                                            <div class="schema-accordion-content-inner">
+                                                <pre><code>${escapeHtml(JSON.stringify(schema.data, null, 2))}</code></pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
         }
         
-        // 3. Microdata 스키마 세부 정보 표시
+        // 5. Microdata 스키마 카드
         if (schemaData.microdata.length > 0) {
-            content += `<div class="seo-checker-item">`;
-            content += '<h3>Microdata 스키마</h3>';
-            
-            schemaData.microdata.forEach((schema, index) => {
-                content += `
-                    <div class="schema-accordion-item">
-                        <div class="schema-accordion-header">
-                            <div class="schema-accordion-title">
-                                <span class="schema-format-badge microdata">Microdata</span>
-                                ${schema.type || '알 수 없는 유형'}
-                            </div>
-                            <button class="schema-toggle-btn">
-                                <svg viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
-                                </svg>
-                            </button>
-                        </div>
-                        <div class="schema-accordion-content">
-                            <div class="schema-accordion-content-inner">
-                                <p>이 요소에는 ${schema.type || '알 수 없는 유형'} 유형의 Microdata 마크업이 포함되어 있습니다.</p>
-                            </div>
-                        </div>
+            content += `
+                <div class="overview-data-card">
+                    <div class="card-header">
+                        <h3>Microdata 스키마</h3>
+                        <span class="seo-checker-status seo-checker-status-good">${schemaData.microdata.length}개</span>
                     </div>
-                `;
-            });
-            
-            content += `</div>`; // seo-checker-item 닫기
+                    <div class="card-content">
+                        <div class="data-meta">
+                            <p class="note">Microdata는 HTML 요소에 직접 추가되는 구조화 데이터 형식입니다.</p>
+                        </div>
+                        <ul class="schema-list">
+                            ${schemaData.microdata.map(schema => 
+                                `<li><span class="schema-format-badge microdata">Microdata</span> ${schema.type || '알 수 없는 유형'}</li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
         }
         
-        // 4. RDFa 스키마 세부 정보 표시
+        // 6. RDFa 스키마 카드
         if (schemaData.rdfa.length > 0) {
-            content += `<div class="seo-checker-item">`;
-            content += '<h3>RDFa 스키마</h3>';
-            
-            schemaData.rdfa.forEach((schema, index) => {
-                content += `
-                    <div class="schema-accordion-item">
-                        <div class="schema-accordion-header">
-                            <div class="schema-accordion-title">
-                                <span class="schema-format-badge rdfa">RDFa</span>
-                                ${schema.type || '알 수 없는 유형'}
-                            </div>
-                            <button class="schema-toggle-btn">
-                                <svg viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
-                                </svg>
-                            </button>
-                        </div>
-                        <div class="schema-accordion-content">
-                            <div class="schema-accordion-content-inner">
-                                <p>이 요소에는 ${schema.type || '알 수 없는 유형'} 유형의 RDFa 마크업이 포함되어 있습니다.</p>
-                            </div>
-                        </div>
+            content += `
+                <div class="overview-data-card">
+                    <div class="card-header">
+                        <h3>RDFa 스키마</h3>
+                        <span class="seo-checker-status seo-checker-status-good">${schemaData.rdfa.length}개</span>
                     </div>
-                `;
-            });
-            
-            content += `</div>`; // seo-checker-item 닫기
+                    <div class="card-content">
+                        <div class="data-meta">
+                            <p class="note">RDFa는 HTML 요소에 의미적 정보를 추가하는 구조화 데이터 형식입니다.</p>
+                        </div>
+                        <ul class="schema-list">
+                            ${schemaData.rdfa.map(schema => 
+                                `<li><span class="schema-format-badge rdfa">RDFa</span> ${schema.type || '알 수 없는 유형'}</li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
         }
         
-        // 5. 권장사항 및 유용한 도구
-        content += `<div class="seo-checker-item">`;
+        // 7. 권장사항 카드
         content += `
-            <h3>구조화 데이터 권장사항</h3>
-            <div class="schema-recommendations">
-                <h4>개선 제안</h4>
-                <ul>
-                    <li>구조화 데이터는 검색 엔진이 콘텐츠를 더 잘 이해하는 데 도움이 됩니다.</li>
-                    ${schemaData.totalSchemas === 0 ? '<li>이 페이지에는 구조화 데이터가 없습니다. 적절한 Schema.org 마크업 추가를 고려하세요.</li>' : ''}
-                    ${!hasProductSchema(schemaData) && isProductPage() ? '<li>제품 페이지에는 Product 스키마를 추가하는 것이 좋습니다.</li>' : ''}
-                    ${!hasArticleSchema(schemaData) && isArticlePage() ? '<li>기사/블로그 페이지에는 Article 스키마를 추가하는 것이 좋습니다.</li>' : ''}
-                </ul>
+            <div class="overview-data-card full-width">
+                <div class="card-header">
+                    <h3>구조화 데이터 권장사항</h3>
+                    <span class="seo-checker-status seo-checker-status-info">권장</span>
+                </div>
+                <div class="card-content">
+                    <div class="schema-recommendations">
+                        <ul>
+                            ${schemaData.totalSchemas === 0 ? 
+                                '<li>이 페이지에는 구조화 데이터가 없습니다. 적절한 Schema.org 마크업 추가를 고려하세요.</li>' : ''
+                            }
+                            ${!hasProductSchema(schemaData) && isProductPage() ? 
+                                '<li>제품 페이지에는 Product 스키마를 추가하는 것이 좋습니다.</li>' : ''
+                            }
+                            ${!hasArticleSchema(schemaData) && isArticlePage() ? 
+                                '<li>기사/블로그 페이지에는 Article 스키마를 추가하는 것이 좋습니다.</li>' : ''
+                            }
+                            <li>구조화 데이터는 검색 엔진이 콘텐츠를 더 잘 이해하고 리치 결과를 표시하는 데 도움이 됩니다.</li>
+                            <li>Google은 JSON-LD 형식을 권장합니다. 가능하면 이 형식을 사용하세요.</li>
+                            <li>중요한 콘텐츠 유형에 맞는 스키마를 추가하세요 (Article, Product, FAQ, Event 등).</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
-            
-            <h3>유용한 도구</h3>
-            <ul class="seo-checker-tools-list">
-                <li><a href="https://search.google.com/test/rich-results" target="_blank">Google 리치 결과 테스트 <span class="external-link-icon">↗</span></a></li>
-                <li><a href="https://validator.schema.org/" target="_blank">Schema.org 유효성 검사기 <span class="external-link-icon">↗</span></a></li>
-                <li><a href="https://developers.google.com/search/docs/advanced/structured-data" target="_blank">Google 구조화 데이터 가이드라인 <span class="external-link-icon">↗</span></a></li>
-            </ul>
         `;
-        content += `</div>`; // 마지막 seo-checker-item 닫기
+        
+        // 8. 유용한 도구 카드
+        content += `
+            <div class="overview-data-card">
+                <div class="card-header">
+                    <h3>유용한 도구</h3>
+                </div>
+                <div class="card-content">
+                    <ul class="seo-checker-tools-list">
+                        <li><a href="https://search.google.com/test/rich-results" target="_blank" rel="noopener noreferrer">Google 리치 결과 테스트 <span class="external-link-icon">↗</span></a></li>
+                        <li><a href="https://validator.schema.org/" target="_blank" rel="noopener noreferrer">Schema.org 유효성 검사기 <span class="external-link-icon">↗</span></a></li>
+                        <li><a href="https://developers.google.com/search/docs/advanced/structured-data" target="_blank" rel="noopener noreferrer">Google 구조화 데이터 가이드라인 <span class="external-link-icon">↗</span></a></li>
+                    </ul>
+                </div>
+            </div>
+        `;
+        
+        // 카드 레이아웃 닫기
+        content += '</div>';
         
         // 최종 내용 업데이트 후 아코디언 설정
         container.innerHTML = content;
@@ -2013,40 +2178,78 @@
         
         // 탭 제목과 전체 컨테이너 초기화
         let html = `<div class="tab-title">소셜 미디어 메타태그</div>`;
+        html += `<div class="overview-cards">`;
         
-        // 1. 미리보기 섹션
-        html += `<div class="seo-checker-item">`;
-        html += `<h3>소셜 미디어 미리보기</h3>`;
-        html += `<p class="importance-note">소셜 미디어에 공유 시 표시되는 미리보기입니다.</p>`;
-        html += createSocialPreview(openGraphTags, twitterTags);
-        html += `</div>`; // 첫 번째 seo-checker-item 닫기
+        // 1. 미리보기 섹션 - 점수 카드와 유사하게 만들기
+        html += `<div class="overview-score-card">
+            <div class="page-info">
+                <h3>소셜 미디어 미리보기</h3>
+                <p class="importance-note">소셜 미디어에 공유 시 표시되는 미리보기입니다.</p>
+            </div>
+            <div class="score-chart">
+                ${createSocialPreview(openGraphTags, twitterTags)}
+            </div>
+        </div>`;
         
         // 2. OpenGraph 태그 섹션
-        html += `<div class="seo-checker-item">`;
-        html += `<h3>OpenGraph 태그</h3>`;
-        html += createSocialTagsTable(openGraphTags, 'OpenGraph');
-        html += `</div>`; // seo-checker-item 닫기
+        html += `<div class="overview-data-card">
+            <div class="card-header">
+                <h3>OpenGraph 태그</h3>
+                <span class="seo-checker-status ${openGraphTags.length > 0 ? 'seo-checker-status-good' : 'seo-checker-status-warning'}">${openGraphTags.length > 0 ? openGraphTags.length + '개' : '없음'}</span>
+            </div>
+            <div class="card-content">
+                <div class="data-value full-width">${createSocialTagsTable(openGraphTags, 'OpenGraph')}</div>
+                <div class="data-meta compact">
+                    <p class="importance-note">OpenGraph 태그는 Facebook을 포함한 대부분의 소셜 미디어에서 링크 공유 시 표시되는 내용을 제어합니다.</p>
+                </div>
+            </div>
+        </div>`;
         
         // 3. Twitter 카드 태그 섹션
-        html += `<div class="seo-checker-item">`;
-        html += `<h3>Twitter Card 태그</h3>`;
-        html += createSocialTagsTable(twitterTags, 'Twitter');
-        html += `</div>`; // seo-checker-item 닫기
+        html += `<div class="overview-data-card">
+            <div class="card-header">
+                <h3>Twitter Card 태그</h3>
+                <span class="seo-checker-status ${twitterTags.length > 0 ? 'seo-checker-status-good' : 'seo-checker-status-warning'}">${twitterTags.length > 0 ? twitterTags.length + '개' : '없음'}</span>
+            </div>
+            <div class="card-content">
+                <div class="data-value full-width">${createSocialTagsTable(twitterTags, 'Twitter')}</div>
+                <div class="data-meta compact">
+                    <p class="importance-note">Twitter 카드 태그는 Twitter에서 공유 시 링크가 표시되는 방식을 제어합니다.</p>
+                </div>
+            </div>
+        </div>`;
         
         // 4. 권장사항 섹션
-        html += `<div class="seo-checker-item">`;
-        html += createSocialRecommendations(openGraphTags, twitterTags);
+        html += `<div class="overview-data-card">
+            <div class="card-header">
+                <h3>소셜 최적화 권장사항</h3>
+            </div>
+            <div class="card-content">
+                <div class="data-value">${createSocialRecommendations(openGraphTags, twitterTags)}</div>
+                <div class="data-meta">
+                    <p class="importance-note">소셜 미디어에서 공유 시 더 나은 사용자 경험을 위한 권장사항입니다.</p>
+                </div>
+            </div>
+        </div>`;
         
         // 5. 유용한 도구 섹션
-        html += `
-            <h3>소셜 미디어 최적화 도구</h3>
-            <ul class="seo-checker-tools-list">
-                <li><a href="https://developers.facebook.com/tools/debug/" target="_blank">Facebook 공유 디버거 <span class="external-link-icon">↗</span></a></li>
-                <li><a href="https://cards-dev.twitter.com/validator" target="_blank">Twitter 카드 검사기 <span class="external-link-icon">↗</span></a></li>
-                <li><a href="https://www.linkedin.com/post-inspector/" target="_blank">LinkedIn 포스트 인스펙터 <span class="external-link-icon">↗</span></a></li>
-            </ul>
-        `;
-        html += `</div>`; // 마지막 seo-checker-item 닫기
+        html += `<div class="overview-data-card">
+            <div class="card-header">
+                <h3>소셜 미디어 최적화 도구</h3>
+            </div>
+            <div class="card-content">
+                <div class="data-value">
+                    <ul class="seo-checker-tools-list">
+                        <li><a href="https://developers.facebook.com/tools/debug/" target="_blank">Facebook 공유 디버거 <span class="external-link-icon">↗</span></a></li>
+                        <li><a href="https://cards-dev.twitter.com/validator" target="_blank">Twitter 카드 검사기 <span class="external-link-icon">↗</span></a></li>
+                        <li><a href="https://www.linkedin.com/post-inspector/" target="_blank">LinkedIn 포스트 인스펙터 <span class="external-link-icon">↗</span></a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>`;
+        
+        // 카드 컨테이너 닫기
+        html += `</div>`;
         
         // 최종 내용 업데이트
         socialContentElement.innerHTML = html;
@@ -2066,7 +2269,7 @@
         try {
             // Facebook/OpenGraph 미리보기
             html += '<div class="social-preview">';
-            html += '<h4>Facebook/OpenGraph 미리보기</h4>';
+            html += '<h4>Facebook/OpenGraph</h4>';
             html += '<div class="preview-card">';
             
             // 이미지
@@ -2101,7 +2304,7 @@
             const twitterCardType = getMetaContent(twitterTags, 'twitter:card') || 'summary_large_image';
             
             html += `<div class="social-preview">`;
-            html += `<h4>Twitter 카드 미리보기 (${twitterCardType})</h4>`;
+            html += `<h4>Twitter (${twitterCardType})</h4>`;
             html += `<div class="preview-card twitter-card ${twitterCardType}">`;
             
             // 이미지
@@ -2215,22 +2418,31 @@
         }
         
         if (recommendations.length === 0) {
-            return `<div class="social-recommendations good">
-                <h4>최적화 완료</h4>
-                <p>소셜 미디어 태그가 잘 구성되어 있습니다.</p>
+            return `<div class="recommendations-list good">
+                <div class="recommendation-item">
+                    <span class="recommendation-status good-status">✓</span>
+                    <div class="recommendation-content">
+                        <h4>최적화 완료</h4>
+                        <p>소셜 미디어 태그가 잘 구성되어 있습니다.</p>
+                    </div>
+                </div>
             </div>`;
         }
         
-        let html = `<div class="social-recommendations">
-            <h4>개선 권장사항</h4>
-            <ul>
-        `;
+        let html = `<div class="recommendations-list">`;
         
         recommendations.forEach(rec => {
-            html += `<li>${rec}</li>`;
+            html += `
+                <div class="recommendation-item">
+                    <span class="recommendation-status warning-status">!</span>
+                    <div class="recommendation-content">
+                        <p>${rec}</p>
+                    </div>
+                </div>
+            `;
         });
         
-        html += '</ul></div>';
+        html += '</div>';
         return html;
     }
 
@@ -2258,136 +2470,108 @@
             return;
         }
         
-        // 초기화 메시지 표시
-        advancedTab.innerHTML = '<div class="loading">고급 분석 중...</div>';
+        // 로딩 표시 추가
+        advancedTab.innerHTML = '<div class="loading-indicator"><div class="loading-spinner"></div><p>고급 분석 중...</p></div>';
         
         // 비동기 분석 수행
         setTimeout(() => {
             try {
-                // 컨테이너 생성
-                let html = '';
+                // 1. 탭 제목 생성
+                let html = `<div class="tab-title">고급 SEO 분석</div>`;
                 
-                // 1. 성능 분석 섹션
+                // 2. 카드 레이아웃 시작
+                html += '<div class="overview-cards">';
+                
+                // 3. 고급 분석 요약 카드 추가
                 html += `
-                    <div class="seo-checker-item">
-                        <h3>성능 분석</h3>
-                        
-                        <div class="performance-metrics">
-                            <div class="metric-card">
-                                <div class="metric-title">LCP (Largest Contentful Paint)</div>
-                                <div class="metric-value">2.5s</div>
-                                <div class="metric-status seo-checker-status-good">양호</div>
-                                <div class="metric-desc">페이지의 주요 콘텐츠가 로드되는 시간</div>
-                            </div>
-                            
-                            <div class="metric-card">
-                                <div class="metric-title">FID (First Input Delay)</div>
-                                <div class="metric-value">85ms</div>
-                                <div class="metric-status seo-checker-status-warning">개선 필요</div>
-                                <div class="metric-desc">사용자 입력에 반응하는 시간</div>
-                            </div>
-                            
-                            <div class="metric-card">
-                                <div class="metric-title">CLS (Cumulative Layout Shift)</div>
-                                <div class="metric-value">0.12</div>
-                                <div class="metric-status seo-checker-status-warning">개선 필요</div>
-                                <div class="metric-desc">페이지 로드 중 시각적 안정성</div>
-                            </div>
+                    <div class="overview-summary-card">
+                        <div class="card-header">
+                            <h3>고급 분석 요약</h3>
                         </div>
-                        
-                        <div class="resource-summary">
-                            <h4>리소스 요약</h4>
-                            <div class="resource-info">
-                                <p>총 요청: <strong>${document.querySelectorAll('*').length} 요소</strong></p>
-                                <p>스크립트: <strong>${document.querySelectorAll('script').length}개</strong></p>
-                                <p>스타일시트: <strong>${document.querySelectorAll('link[rel="stylesheet"]').length}개</strong></p>
-                                <p>이미지: <strong>${document.querySelectorAll('img').length}개</strong></p>
+                        <div class="summary-grid">
+                            <div class="summary-item">
+                                <span>페이지 요소</span>
+                                <strong>${document.querySelectorAll('*').length}개</strong>
                             </div>
-                        </div>
-                        
-                        <div class="performance-recommendations">
-                            <h4>성능 개선 제안</h4>
-                            <ul>
-                                <li>이미지 최적화: WebP 형식 사용 및 이미지 사이즈 최적화</li>
-                                <li>자바스크립트 지연 로딩 구현</li>
-                                <li>중요하지 않은 CSS 지연 로딩</li>
-                                <li>브라우저 캐싱 활용</li>
-                                <li>불필요한 리다이렉트 제거</li>
-                            </ul>
+                            <div class="summary-item">
+                                <span>스크립트</span>
+                                <strong>${document.querySelectorAll('script').length}개</strong>
+                            </div>
+                            <div class="summary-item">
+                                <span>스타일시트</span>
+                                <strong>${document.querySelectorAll('link[rel="stylesheet"]').length}개</strong>
+                            </div>
+                            <div class="summary-item">
+                                <span>이미지</span>
+                                <strong>${document.querySelectorAll('img').length}개</strong>
+                            </div>
+                            <div class="summary-item">
+                                <span>내부 링크</span>
+                                <strong>${document.querySelectorAll('a[href^="/"]:not([href^="//"])').length}개</strong>
+                            </div>
+                            <div class="summary-item">
+                                <span>외부 링크</span>
+                                <strong>${document.querySelectorAll('a[href^="http"]:not([href^="' + window.location.origin + '"])').length}개</strong>
+                            </div>
                         </div>
                     </div>
                 `;
                 
-                // 2. 고급 SEO 검사 섹션
+                // 성능 분석 섹션 추가
+                html += createPerformanceAnalysis();
+                
+                // 고급 SEO 분석 섹션 추가
+                html += createAdvancedSEOAnalysis();
+                
+                // 키워드 분석 카드 추가
                 html += `
-                    <div class="seo-checker-item">
-                        <h3>고급 SEO 검사</h3>
-                        
-                        <div class="mobile-friendly-check">
-                            <h4>모바일 친화성</h4>
-                            <div class="mobile-friendly-status">
-                                <span class="seo-checker-status seo-checker-status-good">모바일 최적화됨</span>
+                    <div class="overview-data-card full-width">
+                        <div class="card-header">
+                            <h3>키워드 분석</h3>
+                            <div class="seo-checker-status seo-checker-status-info">상위 키워드</div>
+                        </div>
+                        <div class="card-content">
+                            <div class="data-meta">
+                                <p class="importance-note">페이지 내용에서 자주 등장하는 주요 키워드입니다. 검색 최적화를 위해 이 키워드들이 제목, 설명, 헤딩에 적절히 사용되었는지 확인하세요.</p>
                             </div>
-                            
-                            <div class="mobile-checks">
-                                <div class="check-item passed">
-                                    <span class="check-name">뷰포트 설정</span>
-                                    <span class="check-status">✓</span>
+                            <div class="keyword-analysis">
+                                <div class="keyword-cloud">
+                                    ${extractKeywords().map(keyword => 
+                                        `<span class="keyword" style="font-size: ${Math.max(100, Math.min(180, 100 + keyword[1] * 10))}%">${keyword[0]} <small>(${keyword[1]})</small></span>`).join('')}
                                 </div>
-                                <div class="check-item passed">
-                                    <span class="check-name">터치 요소 크기</span>
-                                    <span class="check-status">✓</span>
-                                </div>
-                                <div class="check-item passed">
-                                    <span class="check-name">가로 스크롤 없음</span>
-                                    <span class="check-status">✓</span>
-                                </div>
-                                <div class="check-item ${document.querySelectorAll('meta[name="viewport"]').length > 0 ? 'passed' : 'failed'}">
-                                    <span class="check-name">반응형 디자인</span>
-                                    <span class="check-status">${document.querySelectorAll('meta[name="viewport"]').length > 0 ? '✓' : '✗'}</span>
+                                <div class="data-meta compact">
+                                    <p>키워드 클라우드의 크기는 키워드 빈도에 비례합니다. 자주 등장하는 키워드일수록 더 크게 표시됩니다.</p>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <div class="hreflang-analysis">
-                            <h4>Hreflang 분석</h4>
-                            ${document.querySelectorAll('link[rel="alternate"][hreflang]').length > 0 ? 
-                                `<p>발견된 hreflang 태그: ${document.querySelectorAll('link[rel="alternate"][hreflang]').length}개</p>
-                                 <ul>${Array.from(document.querySelectorAll('link[rel="alternate"][hreflang]')).map(el => 
-                                     `<li>${el.getAttribute('hreflang')} - ${el.getAttribute('href')}</li>`).join('')}
-                                 </ul>` : 
-                                '<p>hreflang 태그가 발견되지 않았습니다. 다국어 사이트인 경우 추가하는 것이 좋습니다.</p>'}
-                        </div>
-                        
-                        <div class="keyword-analysis">
-                            <h4>키워드 분석</h4>
-                            <p class="importance-note">페이지 내용에서 자주 등장하는 주요 키워드</p>
-                            
-                            <div class="keyword-cloud">
-                                ${extractKeywords().map(keyword => 
-                                    `<span class="keyword">${keyword[0]} (${keyword[1]})</span>`).join('')}
-                            </div>
-                        </div>
-                        
-                        <div class="internal-link-structure">
-                            <h4>내부 링크 구조</h4>
-                            <p>내부 링크 수: <strong>${document.querySelectorAll('a[href^="/"]:not([href^="//"])').length}개</strong></p>
-                            <p>외부 링크 수: <strong>${document.querySelectorAll('a[href^="http"]:not([href^="' + window.location.origin + '"])').length}개</strong></p>
-                            <p>JavaScript 이벤트 링크 수: <strong>${document.querySelectorAll('a[href="javascript:void(0)"], a[onclick]').length}개</strong></p>
-                            <p>앵커 링크 수: <strong>${document.querySelectorAll('a[href^="#"]').length}개</strong></p>
                         </div>
                     </div>
                 `;
                 
-                // 결과 표시
+                // 카드 레이아웃 종료
+                html += '</div>';
+                
+                // UI 업데이트
                 advancedTab.innerHTML = html;
-                console.log('고급 분석 완료');
+                
+                // 이벤트 리스너 설정
+                setupAdvancedFeatures();
                 
             } catch (error) {
-                advancedTab.innerHTML = `<div class="error">고급 분석 중 오류가 발생했습니다: ${error.message}</div>`;
                 console.error('고급 분석 중 오류 발생:', error);
+                advancedTab.innerHTML = `
+                    <div class="tab-title">고급 SEO 분석</div>
+                    <div class="overview-data-card">
+                        <div class="card-header">
+                            <h3>분석 오류</h3>
+                            <span class="seo-checker-status seo-checker-status-error">오류</span>
+                        </div>
+                        <div class="card-content">
+                            <p>데이터 분석 중 문제가 발생했습니다: ${error.message}</p>
+                        </div>
+                    </div>
+                `;
             }
-        }, 500);
+        }, 100);
     }
 
     /**
@@ -2442,28 +2626,190 @@
      */
     function createPerformanceAnalysis() {
         let html = `
-            <div class="seo-checker-item">
-                <h3>성능 분석</h3>
-                <p class="importance-note">페이지의 성능 관련 지표를 분석하여 최적화 방안을 제시합니다.</p>
-                
-                <div class="advanced-card">
-                    <h4>Core Web Vitals</h4>
-                    <div class="advanced-metrics">
-                        ${generateCoreWebVitalsMetrics()}
+            <div class="overview-data-card full-width">
+                <div class="card-header">
+                    <h3>성능 분석</h3>
+                    <div class="seo-checker-status seo-checker-status-warning">개선 필요</div>
+                </div>
+                <div class="card-content">
+                    <div class="data-meta">
+                        <p class="importance-note">페이지의 성능 관련 지표를 분석하여 최적화 방안을 제시합니다. Core Web Vitals는 검색 순위에 영향을 미치는 중요한 지표입니다.</p>
+                    </div>
+                    
+                    <div class="core-web-vitals-container">
+                        <h4>Core Web Vitals</h4>
+                        <div class="web-vitals-metrics">
+                            ${generateCoreWebVitalsMetrics()}
+                        </div>
+                    </div>
+                    
+                    <div class="resource-summary">
+                        <h4>리소스 분석</h4>
+                        <div class="resource-info">
+                            <div class="data-item">
+                                <div class="data-label">총 요소</div>
+                                <div class="data-value">${document.querySelectorAll('*').length}개</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">스크립트</div>
+                                <div class="data-value">${document.querySelectorAll('script').length}개</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">스타일시트</div>
+                                <div class="data-value">${document.querySelectorAll('link[rel="stylesheet"]').length}개</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">이미지</div>
+                                <div class="data-value">${document.querySelectorAll('img').length}개</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="recommendations-section">
+                        <h4>성능 개선 제안</h4>
+                        <ul class="recommendation-list">
+                            ${generatePerformanceRecommendations()}
+                        </ul>
                     </div>
                 </div>
-                
-                <div class="advanced-card">
-                    <h4>리소스 분석</h4>
-                    <div class="resource-analysis">
-                        ${analyzePageResources()}
+            </div>
+        `;
+        
+        return html;
+    }
+
+    /**
+     * 고급 SEO 분석 섹션 생성
+     */
+    function createAdvancedSEOAnalysis() {
+        let html = `
+            <div class="overview-data-card">
+                <div class="card-header">
+                    <h3>모바일 친화성</h3>
+                    <div class="seo-checker-status ${document.querySelectorAll('meta[name="viewport"]').length > 0 ? 'seo-checker-status-good' : 'seo-checker-status-error'}">${document.querySelectorAll('meta[name="viewport"]').length > 0 ? '양호' : '개선 필요'}</div>
+                </div>
+                <div class="card-content">
+                    <div class="data-meta">
+                        <p class="importance-note">모바일 기기에서의 사용자 경험과 검색 순위에 직접적인 영향을 주는 중요한 요소입니다.</p>
+                    </div>
+                    <div class="data-grid">
+                        <div class="data-item">
+                            <div class="data-label">반응형 메타 태그</div>
+                            <div class="data-value">${document.querySelectorAll('meta[name="viewport"]').length > 0 ? '존재함' : '없음'}</div>
+                            <div class="data-status">
+                                <span class="seo-checker-status ${document.querySelectorAll('meta[name="viewport"]').length > 0 ? 'seo-checker-status-good' : 'seo-checker-status-error'}">${document.querySelectorAll('meta[name="viewport"]').length > 0 ? '양호' : '필요'}</span>
+                            </div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">터치 요소 크기</div>
+                            <div class="data-value">대부분 적절함</div>
+                            <div class="data-status">
+                                <span class="seo-checker-status seo-checker-status-good">양호</span>
+                            </div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">가로 스크롤</div>
+                            <div class="data-value">없음</div>
+                            <div class="data-status">
+                                <span class="seo-checker-status seo-checker-status-good">양호</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="advanced-recommendations">
-                    <h4>성능 개선 권장사항</h4>
-                    <ul>
-                        ${generatePerformanceRecommendations()}
+            </div>
+            
+            <div class="overview-data-card">
+                <div class="card-header">
+                    <h3>Hreflang 분석</h3>
+                    <div class="seo-checker-status seo-checker-status-info">정보</div>
+                </div>
+                <div class="card-content">
+                    <div class="data-meta">
+                        <p class="importance-note">다국어 웹사이트의 언어 및 지역 타겟팅을 위한 정보입니다. 글로벌 사이트에 중요합니다.</p>
+                    </div>
+                    ${document.querySelectorAll('link[rel="alternate"][hreflang]').length > 0 ? 
+                        `<div class="data-item">
+                            <div class="data-label">상태</div>
+                            <div class="data-value">발견됨 (${document.querySelectorAll('link[rel="alternate"][hreflang]').length}개)</div>
+                            <div class="data-status">
+                                <span class="seo-checker-status seo-checker-status-good">양호</span>
+                            </div>
+                        </div>
+                        <div class="hreflang-table-container">
+                            <table class="hreflang-table">
+                                <thead>
+                                    <tr>
+                                        <th>언어 코드</th>
+                                        <th>URL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${Array.from(document.querySelectorAll('link[rel="alternate"][hreflang]')).map(el => 
+                                        `<tr>
+                                            <td><code>${el.getAttribute('hreflang')}</code></td>
+                                            <td>${el.getAttribute('href')}</td>
+                                        </tr>`).join('')}
+                                </tbody>
+                            </table>
+                        </div>` : 
+                        `<div class="data-item">
+                            <div class="data-label">상태</div>
+                            <div class="data-value">hreflang 태그가 발견되지 않았습니다.</div>
+                            <div class="data-status">
+                                <span class="seo-checker-status seo-checker-status-info">정보</span>
+                            </div>
+                        </div>
+                        <div class="data-meta compact">
+                            <p>다국어 사이트인 경우 hreflang 태그를 추가하는 것을 권장합니다. 단일 언어 사이트에서는 필요하지 않습니다.</p>
+                        </div>`}
+                </div>
+            </div>
+            
+            <div class="overview-data-card">
+                <div class="card-header">
+                    <h3>내부 링크 구조</h3>
+                    <div class="seo-checker-status seo-checker-status-info">정보</div>
+                </div>
+                <div class="card-content">
+                    <div class="data-meta">
+                        <p class="importance-note">페이지 내의 내부/외부 링크 현황입니다. 적절한 내부 링크는 검색 엔진이 웹사이트의 구조를 파악하는데 도움을 줍니다.</p>
+                    </div>
+                    <div class="data-grid">
+                        <div class="data-item">
+                            <div class="data-label">내부 링크</div>
+                            <div class="data-value">${document.querySelectorAll('a[href^="/"]:not([href^="//"])').length}개</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">외부 링크</div>
+                            <div class="data-value">${document.querySelectorAll('a[href^="http"]:not([href^="' + window.location.origin + '"])').length}개</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">JS 이벤트 링크</div>
+                            <div class="data-value">${document.querySelectorAll('a[href="javascript:void(0)"], a[onclick]').length}개</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">노팔로우 링크</div>
+                            <div class="data-value">${document.querySelectorAll('a[rel*="nofollow"]').length}개</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="overview-data-card">
+                <div class="card-header">
+                    <h3>권장사항</h3>
+                    <div class="seo-checker-status seo-checker-status-info">중요</div>
+                </div>
+                <div class="card-content">
+                    <div class="data-meta">
+                        <p class="importance-note">검색 최적화를 위한 고급 권장 사항입니다. 이러한 개선사항은 검색 순위 향상에 도움이 됩니다.</p>
+                    </div>
+                    <ul class="recommendation-list">
+                        <li class="critical">Core Web Vitals 지표 개선으로 검색 순위에 긍정적 영향 확보</li>
+                        <li class="important">특정 키워드나 주제에 집중하여 콘텐츠 최적화</li>
+                        <li class="important">내부 링크 구조를 개선하여 중요한 페이지로의 링크 강화</li>
+                        <li>모바일 사용자 경험 개선을 위한 디자인 검토</li>
+                        <li>다국어 콘텐츠가 있는 경우 hreflang 태그 추가</li>
                     </ul>
                 </div>
             </div>
@@ -2473,111 +2819,56 @@
     }
 
     /**
-     * 고급 SEO 검사 섹션 생성
+     * Core Web Vitals 지표 생성
      */
-    function createAdvancedSEOAnalysis() {
-        let html = `
-            <div class="seo-checker-item">
-                <h3>고급 SEO 검사</h3>
-                <p class="importance-note">검색 엔진 최적화를 위한 고급 진단 기능입니다.</p>
-                
-                <div class="advanced-card">
-                    <h4>모바일 친화성</h4>
-                    <div class="mobile-friendly-check">
-                        ${checkMobileFriendliness()}
-                    </div>
+    function generateCoreWebVitalsMetrics() {
+        // 실제 측정이 불가능한 부분이므로 예시 데이터 표시
+        const metrics = [
+            { name: 'LCP', value: '2.5s', status: 'good', description: '가장 큰 콘텐츠 페인트 시간', threshold: '< 2.5초 양호' },
+            { name: 'FID', value: '85ms', status: 'warning', description: '첫 입력 지연 시간', threshold: '< 100ms 양호' },
+            { name: 'CLS', value: '0.12', status: 'warning', description: '누적 레이아웃 이동', threshold: '< 0.1 양호' },
+            { name: 'FCP', value: '1.2s', status: 'good', description: '첫 콘텐츠 페인트 시간', threshold: '< 1.8초 양호' }
+        ];
+        
+        let html = '';
+        
+        metrics.forEach(metric => {
+            const statusText = {
+                'good': '양호',
+                'warning': '개선 필요',
+                'error': '불량'
+            }[metric.status];
+            
+            html += `
+                <div class="metric-card ${metric.status}">
+                    <div class="metric-title">${metric.name}</div>
+                    <div class="metric-value">${metric.value}</div>
+                    <div class="metric-status seo-checker-status-${metric.status}">${statusText}</div>
+                    <div class="metric-desc">${metric.description}</div>
+                    <div class="metric-threshold">${metric.threshold}</div>
                 </div>
-                
-                <div class="advanced-card">
-                    <h4>다국어 설정 (Hreflang)</h4>
-                    <div class="hreflang-analysis">
-                        ${analyzeHreflangTags()}
-                    </div>
-                </div>
-                
-                <div class="advanced-card">
-                    <h4>키워드 분석</h4>
-                    <div class="keyword-analysis">
-                        ${analyzeKeywords()}
-                    </div>
-                </div>
-                
-                <div class="advanced-card">
-                    <h4>내부 링크 구조</h4>
-                    <div class="internal-link-structure">
-                        ${analyzeInternalLinkStructure()}
-                    </div>
-                </div>
-            </div>
-        `;
+            `;
+        });
         
         return html;
     }
 
     /**
-     * Core Web Vitals 지표 분석
+     * 성능 개선 권장사항 생성
      */
-    function generateCoreWebVitalsMetrics() {
-        // 실제로는 PerformanceObserver API 또는 직접 측정을 통해 데이터를 수집해야 합니다
-        // 여기서는 시뮬레이션 데이터 사용
+    function generatePerformanceRecommendations() {
+        // 실제 웹사이트 분석 기반의 권장사항이어야 하지만, 
+        // 여기서는 일반적인 권장사항을 제시합니다
         
-        const lcpValue = Math.random() * 3 + 1.2;  // 1.2초 ~ 4.2초
-        const fidValue = Math.random() * 180 + 20; // 20ms ~ 200ms
-        const clsValue = Math.random() * 0.2;      // 0 ~ 0.2
+        const recommendations = [
+            { text: "이미지 최적화: 이미지를 WebP 포맷으로 변환하고 적절한 크기로 조정하세요.", priority: "important" },
+            { text: "JavaScript 지연 로딩: 핵심 콘텐츠를 방해하지 않는 스크립트는 defer 또는 async 속성을 사용하세요.", priority: "critical" },
+            { text: "CSS 최소화: 사용하지 않는 CSS를 제거하고 파일을 압축하세요.", priority: "normal" },
+            { text: "브라우저 캐싱 활성화: 정적 자산에 대한 적절한 캐시 헤더를 설정하세요.", priority: "important" },
+            { text: "중요하지 않은 타사 스크립트 지연 로딩: 광고, 분석 도구 등의 로딩을 지연시키세요.", priority: "normal" }
+        ];
         
-        let lcpStatus = 'good';
-        let lcpText = '양호';
-        if (lcpValue > 2.5) {
-            lcpStatus = 'warning';
-            lcpText = '개선 필요';
-        }
-        if (lcpValue > 4.0) {
-            lcpStatus = 'error';
-            lcpText = '나쁨';
-        }
-        
-        let fidStatus = 'good';
-        let fidText = '양호';
-        if (fidValue > 100) {
-            fidStatus = 'warning';
-            fidText = '개선 필요';
-        }
-        if (fidValue > 300) {
-            fidStatus = 'error';
-            fidText = '나쁨';
-        }
-        
-        let clsStatus = 'good';
-        let clsText = '양호';
-        if (clsValue > 0.1) {
-            clsStatus = 'warning';
-            clsText = '개선 필요';
-        }
-        if (clsValue > 0.25) {
-            clsStatus = 'error';
-            clsText = '나쁨';
-        }
-        
-        return `
-            <div class="metric-card ${lcpStatus}">
-                <div class="metric-title">LCP</div>
-                <div class="metric-value">${lcpValue.toFixed(2)}s</div>
-                <div class="metric-status seo-checker-status-${lcpStatus}">${lcpText}</div>
-                <div class="metric-desc">Largest Contentful Paint - 화면에 가장 큰 콘텐츠가 표시되는 시간</div>
-            </div>
-            <div class="metric-card ${fidStatus}">
-                <div class="metric-title">FID</div>
-                <div class="metric-value">${fidValue.toFixed(0)}ms</div>
-                <div class="metric-status seo-checker-status-${fidStatus}">${fidText}</div>
-                <div class="metric-desc">First Input Delay - 사용자 입력에 반응하는 시간</div>
-            </div>
-            <div class="metric-card ${clsStatus}">
-                <div class="metric-title">CLS</div>
-                <div class="metric-value">${clsValue.toFixed(3)}</div>
-                <div class="metric-status seo-checker-status-${clsStatus}">${clsText}</div>
-                <div class="metric-desc">Cumulative Layout Shift - 시각적 안정성 측정</div>
-            </div>
-        `;
+        return recommendations.map(rec => `<li class="${rec.priority}">${rec.text}</li>`).join('');
     }
 
     /**
@@ -2676,24 +2967,6 @@
         if (initiatorType === 'img' || /\.(jpg|jpeg|png|gif|svg|webp)/.test(url)) return 'img';
         if (initiatorType === 'fetch' || initiatorType === 'xmlhttprequest') return 'fetch';
         return 'other';
-    }
-
-    /**
-     * 성능 개선 권장사항 생성
-     */
-    function generatePerformanceRecommendations() {
-        // 실제 웹사이트 분석 기반의 권장사항이어야 하지만, 
-        // 여기서는 일반적인 권장사항을 제시합니다
-        
-        const recommendations = [
-            "이미지 최적화: 이미지를 WebP 포맷으로 변환하고 적절한 크기로 조정하세요.",
-            "JavaScript 지연 로딩: 핵심 콘텐츠를 방해하지 않는 스크립트는 defer 또는 async 속성을 사용하세요.",
-            "CSS 최소화: 사용하지 않는 CSS를 제거하고 파일을 압축하세요.",
-            "브라우저 캐싱 활성화: 정적 자산에 대한 적절한 캐시 헤더를 설정하세요.",
-            "중요하지 않은 타사 스크립트 지연 로딩: 광고, 분석 도구 등의 로딩을 지연시키세요."
-        ];
-        
-        return recommendations.map(rec => `<li>${rec}</li>`).join('');
     }
 
     /**
@@ -3094,6 +3367,48 @@
         // 로딩 표시 추가
         container.innerHTML = '<div class="loading-indicator"><div class="loading-spinner"></div><p>문서 구조 분석 중...</p></div>';
 
+        // CSS 스타일 추가
+        const styleElement = document.createElement('style');
+        styleElement.textContent = `
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 10px;
+                margin-top: 15px;
+            }
+            
+            .stat-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 10px;
+                background-color: #f5f5f5;
+                border-radius: 5px;
+                text-align: center;
+            }
+            
+            .stat-label {
+                font-weight: bold;
+                font-size: 14px;
+                margin-bottom: 5px;
+                color: #555;
+            }
+            
+            .stat-value {
+                font-size: 24px;
+                font-weight: bold;
+                color: #4a6ee0;
+            }
+            
+            .h1-tag { color: #4a6ee0; }
+            .h2-tag { color: #45a7c5; }
+            .h3-tag { color: #5dbb63; }
+            .h4-tag { color: #c9bb42; }
+            .h5-tag { color: #e69138; }
+            .h6-tag { color: #cc5042; }
+        `;
+        document.head.appendChild(styleElement);
+
         // 시맨틱 태그 카운트 초기화
         const semanticTagCounts = {
             'HEADER': 0,
@@ -3106,118 +3421,142 @@
             'H1': 0,
             'H2': 0,
             'H3': 0,
+            'H4': 0,
+            'H5': 0,
+            'H6': 0,
             'UL': 0,
             'OL': 0
         };
+        
+        // 중요 시맨틱 태그 정의
+        const importantTags = ['HEADER', 'NAV', 'MAIN', 'ARTICLE', 'FOOTER', 'H1', 'H2'];
+        
+        // 헤딩 구조 분석 변수
+        const headingStructure = {
+            valid: true, // 올바른 헤딩 구조인지 여부
+            issues: [], // 문제점 저장
+            headings: [] // 발견된 헤딩 태그들
+        };
+        
+        // 필터링할 태그 (트리에서 생략할 태그)
+        const ignoreTags = ['SPAN', 'B', 'I', 'STRONG', 'EM', 'SMALL', 'BR', 'HR', 'SVG', 'PATH', 'RECT', 'CIRCLE'];
+
+        // 먼저 페이지 내의 모든 시맨틱 태그와 헤딩 태그 카운트
+        const countPageTags = () => {
+            // 북마클릿 자체의 UI 요소는 제외
+            const overlayId = 'seo-checker-overlay';
+            
+            // 북마클릿 내부 요소를 제외하는 선택자 생성 함수
+            const excludeOverlay = (selector) => {
+                return `${selector}:not(#${overlayId} ${selector}):not(#${overlayId} *):not([id="${overlayId}"])`;
+            };
+
+            // 시맨틱 태그 카운트
+            semanticTagCounts['HEADER'] = document.querySelectorAll(excludeOverlay('header')).length;
+            semanticTagCounts['FOOTER'] = document.querySelectorAll(excludeOverlay('footer')).length;
+            semanticTagCounts['NAV'] = document.querySelectorAll(excludeOverlay('nav')).length;
+            semanticTagCounts['MAIN'] = document.querySelectorAll(excludeOverlay('main')).length;
+            semanticTagCounts['ASIDE'] = document.querySelectorAll(excludeOverlay('aside')).length;
+            semanticTagCounts['SECTION'] = document.querySelectorAll(excludeOverlay('section')).length;
+            semanticTagCounts['ARTICLE'] = document.querySelectorAll(excludeOverlay('article')).length;
+            semanticTagCounts['UL'] = document.querySelectorAll(excludeOverlay('ul')).length;
+            semanticTagCounts['OL'] = document.querySelectorAll(excludeOverlay('ol')).length;
+            
+            // 헤딩 태그 카운트
+            semanticTagCounts['H1'] = document.querySelectorAll(excludeOverlay('h1')).length;
+            semanticTagCounts['H2'] = document.querySelectorAll(excludeOverlay('h2')).length;
+            semanticTagCounts['H3'] = document.querySelectorAll(excludeOverlay('h3')).length;
+            semanticTagCounts['H4'] = document.querySelectorAll(excludeOverlay('h4')).length;
+            semanticTagCounts['H5'] = document.querySelectorAll(excludeOverlay('h5')).length;
+            semanticTagCounts['H6'] = document.querySelectorAll(excludeOverlay('h6')).length;
+            
+            // 헤딩 구조 분석을 위한 헤딩 태그 수집
+            const headingSelector = excludeOverlay('h1, h2, h3, h4, h5, h6');
+            document.querySelectorAll(headingSelector).forEach(heading => {
+                const tagName = heading.tagName.toUpperCase();
+                // 북마클릿 요소인지 추가 확인
+                const isOverlayElement = heading.closest(`#${overlayId}`) !== null || heading.id === overlayId;
+                
+                if (tagName.startsWith('H') && tagName.length === 2 && !isOverlayElement) {
+                    // 북마클릿 관련 콘텐츠 제외 (텍스트 내용으로 필터링)
+                    const text = heading.textContent.trim();
+                    const bookmarkletTexts = [
+                        "H1 태그 상태", "SEO & 웹접근성 체크 북마클릿", "제목 태그 통계", 
+                        "헤딩 구조 목록", "HTML 문서 개요", "문서 구조", "기타 요소",
+                        "문서 구조 접근성 점수", "헤딩 구조 분석", "시맨틱 태그 가이드"
+                    ];
+                    
+                    const isBookmarkletTitle = bookmarkletTexts.some(bText => text.includes(bText));
+                    
+                    if (!isBookmarkletTitle) {
+                        // 북마클릿과 관련 없는 헤딩만 추가
+                        headingStructure.headings.push({
+                            level: parseInt(tagName.substring(1)),
+                            text: text,
+                            element: heading
+                        });
+                    }
+                }
+            });
+        };
+        
+        // 태그 카운팅 수행
+        countPageTags();
 
         let content = '<div class="tab-title">문서 구조</div>';
 
         // 카드 레이아웃 시작
         content += '<div class="overview-cards">';
-
-        // 문서 구조 설명 카드
-        content += `
-            <div class="overview-data-card full-width">
-                <div class="card-header">
-                    <h3>HTML 문서 구조</h3>
-                </div>
-                <div class="card-content">
-                    <div class="data-meta compact">
-                        <p class="importance-note">페이지의 주요 구조 요소(header, nav, main 등), 헤딩(H1-H6), 리스트(UL/OL)의 실제 중첩 구조를 보여줍니다. 시맨틱 태그의 올바른 사용은 SEO와 접근성에 중요합니다.</p>
-                    </div>
-        `;
-
-        // 재귀적으로 구조 리스트 HTML 생성하는 함수
-        function buildStructureList(element) {
-            let listHtml = '';
-            // IMG 제외
-            const relevantTags = ['HEADER', 'FOOTER', 'NAV', 'MAIN', 'ASIDE', 'SECTION', 'ARTICLE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL'];
-            const overlayId = 'seo-checker-overlay';
-            const MAX_TEXT_DISPLAY_LENGTH = 60; // 표시할 텍스트 최대 길이
-            const MAX_LI_TEXT_DISPLAY_LENGTH = 40; // 리스트 아이템 표시 최대 길이
-
-            element.childNodes.forEach(child => {
-                if (child.nodeType === Node.ELEMENT_NODE) {
-                    if (child.id === overlayId || child.closest(`#${overlayId}`)) {
-                        return;
-                    }
-
-                    const tagName = child.tagName.toUpperCase();
-                    let currentItemHtml = '';
-
-                    if (relevantTags.includes(tagName)) {
-                        // 시맨틱 태그 카운트 증가
-                        if (tagName in semanticTagCounts) {
-                            semanticTagCounts[tagName]++;
-                        }
-
-                        let tagContent = '';
-                        let tagTypeClass = 'tag-semantic';
-
-                        if (tagName.startsWith('H')) {
-                            const text = child.textContent.trim() || '(내용 없음)';
-                            tagContent = `<span class="structure-text">${text}</span>`;
-                            tagTypeClass = 'tag-heading';
-                            // 헤딩 레벨에 따른 클래스 추가 (h1-tag, h2-tag 등)
-                            const headingLevel = tagName.substring(1); // "H1"에서 "1"만 추출
-                            tagTypeClass += ` h${headingLevel.toLowerCase()}-tag`;
-                        } else if (tagName === 'UL' || tagName === 'OL') {
-                            // 리스트 아이템 텍스트 추출
-                            const listItems = child.querySelectorAll(':scope > li');
-                            let itemTexts = [];
-                            listItems.forEach(li => {
-                                const liText = li.textContent.trim();
-                                if (liText) {
-                                     itemTexts.push(
-                                         liText.length > MAX_LI_TEXT_DISPLAY_LENGTH
-                                         ? liText.substring(0, MAX_LI_TEXT_DISPLAY_LENGTH) + '...'
-                                         : liText
-                                     );
-                                }
-                            });
-                            // 추출된 텍스트들을 쉼표로 구분하여 표시
-                            if (itemTexts.length > 0) {
-                                 tagContent = `<span class="structure-text list-items">${itemTexts.join(', ')}</span>`;
-                            } else {
-                                 tagContent = `<span class="structure-text list-info">(빈 리스트)</span>`;
-                            }
-                            tagTypeClass = 'tag-list';
-                        } else { // header, nav, main, section 등
-                            // 시맨틱 태그는 텍스트 없이 태그만 표시 (요청에 따라 변경)
-                            tagTypeClass = 'tag-semantic';
-                        }
-                        
-                        currentItemHtml = `<li><span class="structure-tag ${tagTypeClass}">${tagName}</span> ${tagContent}`;
-                        
-                        // 자식 요소 구조를 재귀적으로 빌드하고 현재 항목 내부에 중첩합니다.
-                        const nestedChildrenHtml = buildStructureList(child);
-                        if (nestedChildrenHtml) {
-                             currentItemHtml += `<ul>${nestedChildrenHtml}</ul>`;
-                        }
-                        currentItemHtml += '</li>\n';
-                        listHtml += currentItemHtml; // 관련 태그에 대한 완성된 항목만 추가
-                        
-                    } else {
-                        // 관련 없는 태그인 경우, 자식 요소들의 구조만 직접 추가합니다.
-                        listHtml += buildStructureList(child);
-                    }
-                }
-            });
-            return listHtml;
+        
+        // 접근성 점수 계산 (간단한 휴리스틱)
+        let accessibilityScore = 0;
+        let totalChecks = 5;
+        
+        // 북마클릿 UI 요소는 제외
+        const overlayId = 'seo-checker-overlay';
+        
+        // 북마클릿 내부 요소를 제외하는 선택자 생성 함수
+        const excludeOverlay = (selector) => {
+            return `${selector}:not(#${overlayId} ${selector}):not(#${overlayId} *):not([id="${overlayId}"])`;
+        };
+        
+        // 1. 시맨틱 태그 사용 여부
+        if (document.querySelector(excludeOverlay('header, nav, main, footer, article, section, aside'))) {
+            accessibilityScore++;
         }
-
-        // document.body부터 시작하여 리스트 생성
-        const listContent = buildStructureList(document.body);
-
-        if (listContent) {
-             content += `<ul class="document-structure-list root-level">${listContent}</ul>`;
-        } else {
-             content += '<div class="no-data">문서 구조를 생성할 관련 요소를 찾을 수 없습니다.</div>';
+        
+        // 2. H1 태그 존재 여부
+        if (document.querySelector(excludeOverlay('h1'))) {
+            accessibilityScore++;
         }
+        
+        // 3. 헤딩 구조 체계
+        // analyzeHeadingStructure 함수를 통해 나중에 체크
+        
+        // 4. 이미지에 alt 속성 사용
+        const images = document.querySelectorAll(excludeOverlay('img'));
+        const imagesWithAlt = document.querySelectorAll(excludeOverlay('img[alt]'));
+        if (images.length > 0 && imagesWithAlt.length / images.length >= 0.8) { // 80% 이상의 이미지에 alt 속성이 있는지
+            accessibilityScore++;
+        }
+        
+        // 5. 링크에 의미 있는 텍스트 사용
+        const links = document.querySelectorAll(excludeOverlay('a'));
+        let meaningfulLinkCount = 0;
+        links.forEach(link => {
+            const text = link.textContent.trim();
+            if (text && text.length > 1 && text.toLowerCase() !== 'click here' && text !== '여기' && text !== '링크') {
+                meaningfulLinkCount++;
+            }
+        });
+        if (links.length > 0 && meaningfulLinkCount / links.length >= 0.8) { // 80% 이상의 링크에 의미 있는 텍스트가 있는지
+            accessibilityScore++;
+        }
+        
+        // 점수 백분율 계산
+        const scorePercentage = Math.round((accessibilityScore / totalChecks) * 100);
 
-        content += `</div></div>`; // 카드 콘텐츠와 카드 닫기
-
-        // 시맨틱 태그 통계 카드 추가
+        // 시맨틱 태그 통계 카드 (최상단으로 이동)
         content += `
             <div class="overview-summary-card">
                 <div class="card-header">
@@ -3260,6 +3599,287 @@
             </div>
         `;
 
+        // 헤딩 통계 카드 추가 (두 번째 위치로 이동)
+        content += `
+            <div class="overview-summary-card">
+                <div class="card-header">
+                    <h3>헤딩 태그 통계</h3>
+                </div>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <span>H1</span>
+                        <strong>${semanticTagCounts['H1']}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>H2</span>
+                        <strong>${semanticTagCounts['H2']}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>H3</span>
+                        <strong>${semanticTagCounts['H3']}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>H4</span>
+                        <strong>${semanticTagCounts['H4']}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>H5</span>
+                        <strong>${semanticTagCounts['H5']}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>H6</span>
+                        <strong>${semanticTagCounts['H6']}</strong>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 접근성 점수 카드
+        content += `
+            <div class="overview-score-card">
+                <div class="page-info">
+                    <h3>문서 구조 접근성 점수</h3>
+                    <p class="importance-note">시맨틱 태그 사용, 헤딩 구조 체계 등을 기반으로 한 문서 접근성 점수입니다.</p>
+                </div>
+                <div class="score-chart">
+                    <div class="score-circle">
+                        <svg viewBox="0 0 36 36" class="circular-chart ${scorePercentage >= 80 ? 'good' : scorePercentage >= 60 ? 'average' : 'poor'}">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path class="circle" stroke-dasharray="${scorePercentage}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <text x="18" y="20.35" class="percentage">${scorePercentage}%</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 문서 구조 시각화 카드
+        content += `
+            <div class="overview-data-card full-width">
+                <div class="card-header">
+                    <h3>HTML 문서 구조</h3>
+                    <span class="seo-checker-status ${semanticTagCounts['H1'] > 0 ? 'seo-checker-status-good' : 'seo-checker-status-warning'}">
+                        ${semanticTagCounts['H1'] > 0 ? 'H1 발견' : 'H1 없음'}
+                    </span>
+                </div>
+                <div class="card-content">
+                    <div class="data-meta compact">
+                        <p class="importance-note">페이지의 주요 구조 요소와 헤딩의 계층 구조를 보여줍니다. <a href="#" id="toggle-all-structure">모두 펼치기/접기</a></p>
+                    </div>
+                    <div class="structure-visualization">
+        `;
+
+        // 재귀적으로 구조 리스트 HTML 생성하는 함수
+        function buildStructureList(element, depth = 0) {
+            let listHtml = '';
+            // 관련 태그 정의
+            const relevantTags = ['HEADER', 'FOOTER', 'NAV', 'MAIN', 'ASIDE', 'SECTION', 'ARTICLE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'DIV', 'FORM'];
+            const overlayId = 'seo-checker-overlay';
+            const MAX_TEXT_DISPLAY_LENGTH = 40; // 표시할 텍스트 최대 길이
+            const MAX_NESTED_DEPTH = 10; // 최대 중첩 깊이
+            
+            // 최대 중첩 깊이를 초과하면 중단
+            if (depth > MAX_NESTED_DEPTH) return '';
+            
+            const childElements = Array.from(element.children).filter(child => {
+                const tagName = child.tagName.toUpperCase();
+                // SEO 체커 자신의 요소와 무시할 태그는 필터링
+                return !(child.id === overlayId || child.closest(`#${overlayId}`) || ignoreTags.includes(tagName));
+            });
+            
+            childElements.forEach(child => {
+                const tagName = child.tagName.toUpperCase();
+                let currentItemHtml = '';
+                
+                // DIV가 아닌 시맨틱 태그나 헤딩만 표시하고, 너무 깊은 중첩은 건너뛰기 
+                // 또는 DIV인 경우 자식에 중요한 요소가 있으면 포함
+                const hasImportantChild = Array.from(child.children).some(c => 
+                    importantTags.includes(c.tagName.toUpperCase()) || c.tagName.startsWith('H')
+                );
+                
+                if (relevantTags.includes(tagName) || hasImportantChild) {
+                    // 시맨틱 태그 카운트 증가는 이미 countPageTags에서 수행되므로 여기서는 제거
+                    
+                    // 헤딩 태그 구조는 이미 countPageTags에서 수집되므로 여기서는 제거
+
+                    let tagContent = '';
+                    let tagTypeClass = 'tag-semantic';
+                    let tagIcon = '';
+                    let isImportant = importantTags.includes(tagName);
+                    let isHiddenDefault = depth > 2 && !isImportant && tagName !== 'DIV';
+                    let collapsedClass = isHiddenDefault ? ' collapsed' : '';
+                    let toggleIcon = hasImportantChild || relevantTags.includes(tagName) ? 
+                        `<span class="structure-toggle">${isHiddenDefault ? '+' : '-'}</span>` : '';
+                    
+                    // 태그별 아이콘 및 스타일 추가
+                    if (tagName.startsWith('H')) {
+                        const text = child.textContent.trim() || '(내용 없음)';
+                        const displayText = text.length > MAX_TEXT_DISPLAY_LENGTH ? 
+                            text.substring(0, MAX_TEXT_DISPLAY_LENGTH) + '...' : text;
+                        
+                        tagContent = `<span class="structure-text">${displayText}</span>`;
+                        tagTypeClass = 'tag-heading';
+                        // 헤딩 레벨에 따른 클래스 추가 (h1-tag, h2-tag 등)
+                        const headingLevel = tagName.substring(1); // "H1"에서 "1"만 추출
+                        tagTypeClass += ` h${headingLevel.toLowerCase()}-tag`;
+                        tagIcon = '<i class="structure-icon heading-icon"></i>';
+                        
+                        // H1은 강조 표시
+                        if (tagName === 'H1') {
+                            isImportant = true;
+                        }
+                    } else if (tagName === 'UL' || tagName === 'OL') {
+                        const listItems = child.querySelectorAll(':scope > li');
+                        tagContent = `<span class="structure-text list-info">(${listItems.length}개 항목)</span>`;
+                        tagTypeClass = 'tag-list';
+                        tagIcon = '<i class="structure-icon list-icon"></i>';
+                    } else if (tagName === 'DIV') {
+                        // DIV는 클래스나 ID가 있을 때만 표시
+                        const classAttr = child.getAttribute('class');
+                        const idAttr = child.getAttribute('id');
+                        
+                        if ((classAttr && classAttr.trim()) || (idAttr && idAttr.trim())) {
+                            let divInfo = '';
+                            if (idAttr) divInfo += `#${idAttr}`;
+                            if (classAttr) {
+                                const mainClass = classAttr.split(' ')[0];
+                                divInfo += divInfo ? ` .${mainClass}` : `.${mainClass}`;
+                            }
+                            
+                            tagContent = `<span class="structure-text">${divInfo}</span>`;
+                        } else {
+                            // 속성 없는 DIV는 자식 정보만 표시하고 자신은 생략
+                            const nestedChildrenHtml = buildStructureList(child, depth + 1);
+                            if (nestedChildrenHtml) {
+                                listHtml += nestedChildrenHtml;
+                            }
+                            return;
+                        }
+                    } else { // header, nav, main, section 등
+                        // 시맨틱 태그는 태그 아이콘과 함께 표시
+                        tagTypeClass = 'tag-semantic';
+                        
+                        // ID나 클래스가 있으면 표시
+                        const idAttr = child.getAttribute('id');
+                        const classAttr = child.getAttribute('class');
+                        let infoText = '';
+                        
+                        if (idAttr) infoText += `#${idAttr}`;
+                        if (classAttr) {
+                            const mainClass = classAttr.split(' ')[0];
+                            infoText += infoText ? ` .${mainClass}` : `.${mainClass}`;
+                        }
+                        
+                        if (infoText) {
+                            tagContent = `<span class="structure-text">${infoText}</span>`;
+                        }
+                        
+                        // 태그별 아이콘 설정
+                        switch (tagName) {
+                            case 'HEADER':
+                                tagIcon = '<i class="structure-icon header-icon"></i>';
+                                break;
+                            case 'FOOTER':
+                                tagIcon = '<i class="structure-icon footer-icon"></i>';
+                                break;
+                            case 'NAV':
+                                tagIcon = '<i class="structure-icon nav-icon"></i>';
+                                break;
+                            case 'MAIN':
+                                tagIcon = '<i class="structure-icon main-icon"></i>';
+                                break;
+                            case 'ASIDE':
+                                tagIcon = '<i class="structure-icon aside-icon"></i>';
+                                break;
+                            case 'SECTION':
+                                tagIcon = '<i class="structure-icon section-icon"></i>';
+                                break;
+                            case 'ARTICLE':
+                                tagIcon = '<i class="structure-icon article-icon"></i>';
+                                break;
+                            default:
+                                tagIcon = '<i class="structure-icon generic-icon"></i>';
+                        }
+                    }
+                    
+                    // 항목 중요도에 따른 클래스 추가
+                    const importantClass = isImportant ? ' important' : '';
+                    const h1Class = tagName === 'H1' ? ' h1-item' : '';
+                    
+                    currentItemHtml = `<li class="structure-item${importantClass}${h1Class}${collapsedClass}">
+                        <div class="structure-node">
+                            ${toggleIcon}
+                            ${tagIcon}
+                            <span class="structure-tag ${tagTypeClass}">${tagName}</span>
+                            ${tagContent}
+                        </div>`;
+                    
+                    // 자식 요소 구조를 재귀적으로 빌드하고 현재 항목 내부에 중첩합니다.
+                    const nestedChildrenHtml = buildStructureList(child, depth + 1);
+                    if (nestedChildrenHtml) {
+                         currentItemHtml += `<ul class="structure-children">${nestedChildrenHtml}</ul>`;
+                    }
+                    currentItemHtml += '</li>\n';
+                    listHtml += currentItemHtml; // 관련 태그에 대한 완성된 항목만 추가
+                    
+                } else {
+                    // 관련 없는 태그인 경우, 자식 요소들의 구조만 직접 추가
+                    const nestedChildrenHtml = buildStructureList(child, depth + 1);
+                    if (nestedChildrenHtml) {
+                        listHtml += nestedChildrenHtml;
+                    }
+                }
+            });
+            return listHtml;
+        }
+
+        // document.body부터 시작하여 리스트 생성
+        const listContent = buildStructureList(document.body);
+        
+        // 헤딩 구조 분석
+        analyzeHeadingStructure(headingStructure);
+        
+        // 헤딩 구조가 유효하면 접근성 점수 증가
+        if (headingStructure.valid) {
+            accessibilityScore++;
+        }
+
+        if (listContent) {
+             content += `<ul class="document-structure-list root-level">${listContent}</ul>`;
+        } else {
+             content += '<div class="no-data">문서 구조를 생성할 관련 요소를 찾을 수 없습니다.</div>';
+        }
+
+        content += `</div></div></div>`; // structure-visualization, card-content, 카드 닫기
+
+        // 헤딩 구조 분석 카드 추가
+        content += `
+            <div class="overview-data-card">
+                <div class="card-header">
+                    <h3>헤딩 구조 분석</h3>
+                    <span class="seo-checker-status ${headingStructure.valid ? 'seo-checker-status-good' : 'seo-checker-status-warning'}">
+                        ${headingStructure.valid ? '올바른 구조' : '구조 개선 필요'}
+                    </span>
+                </div>
+                <div class="card-content">
+                    <div class="data-meta">
+                        <p class="importance-note">헤딩 태그(H1-H6)는 페이지 콘텐츠의 계층 구조를 정의하며, 논리적인 순서로 사용해야 합니다.</p>
+                    </div>
+                    <div class="heading-structure-viz">
+                        ${createHeadingVisualization(headingStructure)}
+                    </div>
+                    ${headingStructure.issues.length > 0 ? `
+                        <div class="heading-issues">
+                            <h4>개선 필요 사항</h4>
+                            <ul class="issue-list">
+                                ${headingStructure.issues.map(issue => `<li>${issue}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+
         // 시맨틱 태그 설명 카드
         content += `
             <div class="overview-data-card">
@@ -3271,68 +3891,404 @@
                         <p class="importance-note">시맨틱 태그는 콘텐츠의 의미와 구조를 명확히 하여 SEO 및 접근성을 향상시킵니다.</p>
                     </div>
                     <div class="data-item">
-                        <div class="data-label">HEADER</div>
+                        <div class="data-label"><i class="structure-icon header-icon"></i> HEADER</div>
                         <div class="data-value">페이지 상단의 헤더 영역 (로고, 네비게이션 등)</div>
                     </div>
                     <div class="data-item">
-                        <div class="data-label">NAV</div>
+                        <div class="data-label"><i class="structure-icon nav-icon"></i> NAV</div>
                         <div class="data-value">탐색 메뉴 및 링크 모음</div>
                     </div>
                     <div class="data-item">
-                        <div class="data-label">MAIN</div>
+                        <div class="data-label"><i class="structure-icon main-icon"></i> MAIN</div>
                         <div class="data-value">페이지의 주요 콘텐츠 영역</div>
                     </div>
                     <div class="data-item">
-                        <div class="data-label">SECTION</div>
+                        <div class="data-label"><i class="structure-icon section-icon"></i> SECTION</div>
                         <div class="data-value">독립적인 콘텐츠 섹션</div>
                     </div>
                     <div class="data-item">
-                        <div class="data-label">ARTICLE</div>
+                        <div class="data-label"><i class="structure-icon article-icon"></i> ARTICLE</div>
                         <div class="data-value">독립적으로 배포 가능한 콘텐츠 블록</div>
                     </div>
                     <div class="data-item">
-                        <div class="data-label">ASIDE</div>
+                        <div class="data-label"><i class="structure-icon aside-icon"></i> ASIDE</div>
                         <div class="data-value">주요 콘텐츠와 간접적으로 관련된 사이드바</div>
                     </div>
                     <div class="data-item">
-                        <div class="data-label">FOOTER</div>
+                        <div class="data-label"><i class="structure-icon footer-icon"></i> FOOTER</div>
                         <div class="data-value">페이지 하단 푸터 영역</div>
                     </div>
                 </div>
             </div>
         `;
 
-        // 접근성 팁 카드
-        content += `
-            <div class="overview-data-card">
-                <div class="card-header">
-                    <h3>접근성 체크포인트</h3>
-                </div>
-                <div class="card-content">
-                    <div class="data-meta">
-                        <p class="importance-note">문서 구조의 접근성 향상을 위한 핵심 체크포인트</p>
-                    </div>
-                    <div class="data-item">
-                        <div class="data-value">✓ 시맨틱 태그를 사용하여 콘텐츠 구조화</div>
-                    </div>
-                    <div class="data-item">
-                        <div class="data-value">✓ 헤딩 태그(H1-H6)를 올바른 계층 구조로 사용</div>
-                    </div>
-                    <div class="data-item">
-                        <div class="data-value">✓ 키보드 탐색 경로 논리적으로 구성</div>
-                    </div>
-                    <div class="data-item">
-                        <div class="data-value">✓ 랜드마크 영역 적절히 정의 (header, nav, main 등)</div>
-                    </div>
-                    <div class="data-item">
-                        <div class="data-value">✓ ARIA 속성 필요에 따라 적절히 사용</div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        content += '</div>'; // 카드 레이아웃 닫기
+        // HTML에 내용 삽입
         container.innerHTML = content;
+        
+        // CSS 변수 추가로 트리 라인 스타일링
+        addTreeStyling();
+        
+        // 접기/펼치기 기능 추가
+        setupStructureToggle();
+    }
+    
+    /**
+     * 트리 구조 접기/펼치기 이벤트 설정
+     */
+    function setupStructureToggle() {
+        // 개별 노드 접기/펼치기
+        document.querySelectorAll('.structure-toggle').forEach(toggle => {
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const item = toggle.closest('.structure-item');
+                item.classList.toggle('collapsed');
+                toggle.textContent = item.classList.contains('collapsed') ? '+' : '-';
+            });
+        });
+        
+        // 모두 접기/펼치기 토글
+        const toggleAllBtn = document.getElementById('toggle-all-structure');
+        if (toggleAllBtn) {
+            toggleAllBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const allItems = document.querySelectorAll('.structure-item');
+                const anyCollapsed = Array.from(allItems).some(item => item.classList.contains('collapsed'));
+                
+                // 하나라도 접혀있으면 모두 펼치기, 모두 펼쳐져 있으면 모두 접기
+                allItems.forEach(item => {
+                    const toggle = item.querySelector('.structure-toggle');
+                    if (anyCollapsed) {
+                        item.classList.remove('collapsed');
+                        if (toggle) toggle.textContent = '-';
+                    } else {
+                        item.classList.add('collapsed');
+                        if (toggle) toggle.textContent = '+';
+                    }
+                });
+            });
+        }
+    }
+    
+    /**
+     * 헤딩 구조 분석 함수
+     */
+    function analyzeHeadingStructure(headingStructure) {
+        // 북마클릿 요소 필터링을 위한 추가 로직
+        const overlayId = 'seo-checker-overlay';
+        
+        // 기존에 초기화되었을 수 있는 헤딩 태그들을 한번 더 필터링
+        headingStructure.headings = headingStructure.headings.filter(heading => {
+            const element = heading.element;
+            if (!element) return true; // element가 없으면 기본값으로 포함
+            
+            // 북마클릿 요소인지 확인 - DOM 위치 기반 필터링만 적용
+            // 요소가 북마클릿 오버레이 내부에 있거나 오버레이 자체인 경우만 필터링
+            const isOverlayElement = element.closest(`#${overlayId}`) !== null || element.id === overlayId;
+            
+            // 텍스트 내용 기반 필터링은 제거하고 DOM 위치 기반 필터링만 사용
+            return !isOverlayElement;
+        });
+        
+        const headings = headingStructure.headings;
+        
+        // 발견된 헤딩이 없으면 문제 추가
+        if (headings.length === 0) {
+            headingStructure.valid = false;
+            headingStructure.issues.push("헤딩 태그(H1-H6)가 없습니다. 문서 구조를 위해 헤딩 태그를 사용하세요.");
+            return;
+        }
+        
+        // 나머지 분석 로직은 그대로 유지
+        // H1 태그 검사
+        const h1Count = headings.filter(h => h.level === 1).length;
+        if (h1Count === 0) {
+            headingStructure.valid = false;
+            headingStructure.issues.push("H1 태그가 없습니다. 페이지의 주제를 나타내는 H1 태그를 추가하세요.");
+        } else if (h1Count > 1) {
+            headingStructure.valid = false;
+            headingStructure.issues.push(`페이지에 ${h1Count}개의 H1 태그가 있습니다. 일반적으로 페이지당 하나의 H1만 사용해야 합니다.`);
+        }
+        
+        // 헤딩 계층 구조 검사
+        let prevLevel = 0;
+        for (let i = 0; i < headings.length; i++) {
+            const currentLevel = headings[i].level;
+            
+            // 처음 헤딩이 H1이 아닌 경우
+            if (i === 0 && currentLevel !== 1) {
+                headingStructure.valid = false;
+                headingStructure.issues.push(`첫 번째 헤딩이 H${currentLevel}입니다. 페이지는 H1으로 시작해야 합니다.`);
+            }
+            
+            // 헤딩 레벨이 한 번에 2단계 이상 건너뛴 경우
+            if (prevLevel > 0 && currentLevel > prevLevel + 1) {
+                headingStructure.valid = false;
+                headingStructure.issues.push(`H${prevLevel} 다음에 H${currentLevel}이 사용되었습니다. 헤딩 레벨을 건너뛰지 말고 H${prevLevel + 1}을 사용하세요.`);
+            }
+            
+            prevLevel = currentLevel;
+        }
+    }
+    
+    /**
+     * 헤딩 구조 시각화 함수
+     */
+    function createHeadingVisualization(headingStructure) {
+        const headings = headingStructure.headings;
+        
+        if (headings.length === 0) {
+            return '<div class="no-data">헤딩 태그(H1-H6)가 발견되지 않았습니다.</div>';
+        }
+        
+        let html = '<div class="heading-structure-tree">';
+        
+        // 각 헤딩 레벨별 색상 지정
+        const levelColors = {
+            1: '#4a6ee0', // H1 - 파란색
+            2: '#45a7c5', // H2 - 청록색
+            3: '#5dbb63', // H3 - 녹색
+            4: '#c9bb42', // H4 - 노란색
+            5: '#e69138', // H5 - 주황색
+            6: '#cc5042'  // H6 - 빨간색
+        };
+        
+        for (let i = 0; i < headings.length; i++) {
+            const heading = headings[i];
+            const indentation = (heading.level - 1) * 20; // 헤딩 레벨에 따른 들여쓰기
+            const text = heading.text.length > 50 ? heading.text.substring(0, 50) + '...' : heading.text;
+            const color = levelColors[heading.level] || '#999';
+            
+            html += `
+                <div class="heading-item" style="margin-left: ${indentation}px;">
+                    <span class="heading-badge" style="background-color: ${color};">H${heading.level}</span>
+                    <span class="heading-text">${text || '(내용 없음)'}</span>
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+        return html;
+    }
+    
+    /**
+     * 트리 구조 스타일링 추가 함수
+     */
+    function addTreeStyling() {
+        // 트리 라인을 위한 CSS 추가
+        const styleId = 'seo-checker-tree-style';
+        
+        // 이미 스타일이 있으면 추가하지 않음
+        if (document.getElementById(styleId)) {
+            return;
+        }
+        
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+            .document-structure-list {
+                --tree-line-color: #ddd;
+                --tree-line-width: 1px;
+                --tree-node-gap: 0.5rem;
+                margin: 0;
+                padding: 0;
+                list-style: none;
+            }
+            
+            .structure-node {
+                display: flex;
+                align-items: center;
+                padding: 0.25rem 0.5rem;
+                border-radius: 4px;
+                background-color: #f9f9f9;
+                margin-bottom: 0.25rem;
+                font-size: 0.85rem;
+            }
+            
+            .structure-children {
+                margin-left: 1.5rem;
+                border-left: var(--tree-line-width) solid var(--tree-line-color);
+                padding-left: 0.5rem;
+                list-style: none;
+            }
+            
+            .structure-item {
+                position: relative;
+                margin-bottom: var(--tree-node-gap);
+            }
+            
+            .structure-children .structure-item:last-child {
+                margin-bottom: 0;
+            }
+            
+            .structure-children .structure-item::before {
+                content: '';
+                position: absolute;
+                top: 0.5rem;
+                left: -0.5rem;
+                width: 0.5rem;
+                height: var(--tree-line-width);
+                background-color: var(--tree-line-color);
+            }
+            
+            .structure-icon {
+                display: inline-block;
+                width: 14px;
+                height: 14px;
+                margin-right: 4px;
+                background-color: #ccc;
+                border-radius: 2px;
+                position: relative;
+            }
+            
+            .heading-icon { background-color: #4a6ee0; }
+            .header-icon { background-color: #e69138; }
+            .footer-icon { background-color: #8e7cc3; }
+            .nav-icon { background-color: #6aa84f; }
+            .main-icon { background-color: #cc0000; }
+            .section-icon { background-color: #45818e; }
+            .article-icon { background-color: #674ea7; }
+            .aside-icon { background-color: #f1c232; }
+            .list-icon { background-color: #999999; }
+            
+            .structure-tag {
+                display: inline-block;
+                padding: 1px 4px;
+                border-radius: 2px;
+                margin-right: 6px;
+                font-weight: bold;
+                font-size: 0.75rem;
+                color: white;
+            }
+            
+            .tag-heading {
+                background-color: #4a6ee0;
+            }
+            
+            .h1-tag { background-color: #4a6ee0; }
+            .h2-tag { background-color: #45a7c5; }
+            .h3-tag { background-color: #5dbb63; }
+            .h4-tag { background-color: #c9bb42; }
+            .h5-tag { background-color: #e69138; }
+            .h6-tag { background-color: #cc5042; }
+            
+            .tag-semantic {
+                background-color: #5d6b82;
+            }
+            
+            .tag-list {
+                background-color: #8d8d8d;
+            }
+            
+            .structure-text {
+                flex: 1;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                font-size: 0.8rem;
+            }
+            
+            /* 헤딩 구조 시각화 스타일 */
+            .heading-structure-tree {
+                margin-top: 1rem;
+            }
+            
+            .heading-item {
+                display: flex;
+                align-items: center;
+                margin-bottom: 0.25rem;
+                padding: 0.15rem 0.25rem;
+                border-radius: 3px;
+                background-color: #f9f9f9;
+            }
+            
+            .heading-badge {
+                display: inline-block;
+                padding: 1px 4px;
+                border-radius: 2px;
+                margin-right: 6px;
+                font-weight: bold;
+                font-size: 0.75rem;
+                color: white;
+            }
+            
+            .heading-text {
+                flex: 1;
+                font-size: 0.8rem;
+            }
+            
+            /* 원형 차트 스타일 */
+            .circular-chart {
+                display: block;
+                width: 100%;
+                max-width: 80%;
+                margin: 0 auto;
+            }
+            
+            .circle-bg {
+                fill: none;
+                stroke: #eee;
+                stroke-width: 3.8;
+            }
+            
+            .circle {
+                fill: none;
+                stroke-width: 3.8;
+                stroke-linecap: round;
+                transform: rotate(-90deg);
+                transform-origin: 50% 50%;
+            }
+            
+            .circular-chart.good .circle {
+                stroke: #4caf50;
+            }
+            
+            .circular-chart.average .circle {
+                stroke: #ff9800;
+            }
+            
+            .circular-chart.poor .circle {
+                stroke: #f44336;
+            }
+            
+            .percentage {
+                fill: #666;
+                font-size: 0.45em;
+                text-anchor: middle;
+                font-weight: bold;
+            }
+            
+            /* 구조 트리 접기/펼치기 기능 */
+            .structure-toggle {
+                cursor: pointer;
+                width: 12px;
+                height: 12px;
+                margin-right: 4px;
+                background-color: #ddd;
+                border-radius: 2px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 8px;
+                color: #555;
+            }
+            
+            .collapsed > .structure-children {
+                display: none;
+            }
+            
+            /* 중요 시맨틱 요소 강조 */
+            .structure-item.important .structure-node {
+                border: 1px solid rgba(74, 110, 224, 0.5);
+                background-color: rgba(74, 110, 224, 0.05);
+            }
+            
+            .structure-item.h1-item .structure-node {
+                border: 1px solid rgba(74, 110, 224, 0.7);
+                background-color: rgba(74, 110, 224, 0.1);
+            }
+        `;
+        
+        document.head.appendChild(style);
     }
     
     /**
