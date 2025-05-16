@@ -27,4 +27,11 @@ Thumbs.db
 
 # Cache
 .npm
-.eslintcache 
+.eslintcache
+
+# Build and Distribution
+.dist/
+dist/
+bookmarklet.min.js
+seox_static_dist.zip
+*.zip 
