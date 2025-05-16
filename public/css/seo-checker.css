@@ -2449,4 +2449,66 @@
 .performance-metrics, .advanced-metrics {
     display: none;
 }
+
+.desc-main { color: #666; font-size: 0.98em; }
+.desc-strong { color: #1976d2; font-weight: bold; }
+  
+/* 개요 카드 내부 행 정렬 및 스타일 개선 */
+.data-item, .overview-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+    gap: 8px;
+}
+
+.data-label, .overview-label {
+    font-weight: 600;
+    color: #444;
+    min-width: 110px;
+    margin-right: 10px;
+    flex-shrink: 0;
+    text-align: left;
+    font-size: 14px;
+}
+
+.data-value, .overview-value {
+    flex: 1;
+    color: #222;
+    font-size: 14px;
+    text-align: left;
+    margin-right: 10px;
+    word-break: break-all;
+}
+
+.data-status, .overview-status {
+    min-width: 80px;
+    text-align: right;
+    margin-left: auto;
+    font-size: 13px;
+}
+
+.overview-data-card, .overview-score-card {
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding-bottom: 8px;
+}
+
+/* 카드 간격 및 반응형 개선 */
+.overview-cards {
+    gap: 24px;
+}
+
+@media screen and (max-width: 900px) {
+    .overview-cards {
+        gap: 12px;
+    }
+    .overview-data-card, .overview-score-card {
+        min-height: 120px;
+        padding-bottom: 4px;
+    }
+}
   

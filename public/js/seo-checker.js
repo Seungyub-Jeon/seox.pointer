@@ -319,7 +319,7 @@
                         <div class="data-value full-width">${title || '(없음)'}</div>
                         <div class="data-meta compact">
                             <p class="note">${titleMessage}</p>
-                            <p class="importance-note">검색 결과 제목 및 브라우저 탭에 표시되며, SEO 순위에 중요한 영향을 미칩니다.</p>
+                            <p class="importance-note"><span class="desc-main">검색 결과와 브라우저 탭에 표시됩니다. <b class="desc-strong">SEO에 매우 중요합니다.</b></span></p>
                         </div>
                     </div>
                 </div>
