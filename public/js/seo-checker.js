@@ -90,6 +90,37 @@
     // UI 조립
     overlay.appendChild(closeButton);
     overlay.appendChild(tabsContainer);
+
+    // 전체 보고서 PDF 저장 버튼 추가
+    const printReportButton = document.createElement('button');
+    printReportButton.id = 'seo-checker-print-report';
+    printReportButton.textContent = '전체 보고서 PDF 저장';
+    printReportButton.className = 'seo-checker-export-btn'; // 기존 내보내기 버튼 스타일 활용
+    printReportButton.style.marginLeft = 'auto'; // 탭 버튼들 오른쪽에 위치하도록
+    printReportButton.addEventListener('click', function() {
+        // 인쇄 시 불필요한 UI 요소 임시 숨김 (선택 사항)
+        const elementsToHideTemporarily = ['#seo-checker-tabs', '#seo-checker-close', '#seo-checker-print-report', '.toggle-list-btn', '.export-buttons button:not(#seo-checker-print-report)'];
+        elementsToHideTemporarily.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => el.style.display = 'none');
+        });
+
+        // 모든 탭 콘텐츠를 활성화하여 인쇄에 포함 (선택 사항: 현재 활성 탭만 인쇄할 수도 있음)
+        // document.querySelectorAll('.seo-checker-tab-content').forEach(content => content.classList.add('active'));
+
+        window.print();
+
+        // 인쇄 후 숨겼던 UI 요소 다시 표시
+         elementsToHideTemporarily.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => el.style.display = ''); // 원래 display 속성으로 복원
+        });
+        // document.querySelectorAll('.seo-checker-tab-content').forEach((content, index) => {
+        //     if (index !== Array.from(tabsContainer.children).findIndex(tab => tab.classList.contains('active'))) {
+        //         content.classList.remove('active');
+        //     }
+        // });
+    });
+    tabsContainer.appendChild(printReportButton); // 탭 컨테이너 오른쪽에 버튼 추가
+
     overlay.appendChild(tabContents);
     document.body.appendChild(overlay);
     
@@ -113,29 +144,39 @@
     /**
      * 페이지 분석 실행 함수 (이제 analyzeOverview는 async)
      */
-    function analyzePage() {
+    async function analyzePage() {
         console.log('analyzePage 시작 - 모든 탭 ID 확인:');
         document.querySelectorAll('.seo-checker-tab-content').forEach(el => {
             console.log(`탭 컨테이너 ID: ${el.id}, 요소:`, el);
         });
-        
-        // 각 분석 함수 호출 (analyzeOverview는 async이지만 await 없이 호출)
+
         console.log('소셜 콘텐츠 컨테이너 존재 여부:', document.getElementById('seo-checker-social') !== null);
-        
-        analyzeOverview(); 
-        analyzeHeadings();
-        analyzeDocumentStructure();
-        analyzeLinks();
-        analyzeImages();
-        analyzeSchema();
-        analyzeSocial();
-        analyzeAdvanced();
+
+        // 모든 분석 함수를 Promise로 래핑하여 병렬 실행
+        const analyses = [
+            analyzeOverview(),
+            analyzeHeadings(),
+            analyzeDocumentStructure(),
+            analyzeLinks(),
+            analyzeImages(),
+            analyzeSchema(),
+            analyzeSocial(),
+            analyzeAdvanced()
+        ];
+
+        try {
+            await Promise.all(analyses);
+            console.log('모든 분석 작업 완료');
+        } catch (error) {
+            console.error('페이지 분석 중 오류 발생:', error);
+            // 필요시 사용자에게 오류 메시지 표시
+        }
     }
     
     /**
      * Overview 탭 분석 (async 함수로 변경)
      */
-    async function analyzeOverview() { // async 추가
+    async function analyzeOverview() {
         const container = document.getElementById('seo-checker-overview');
         if (!container) {
             console.error('#seo-checker-overview container not found!');
@@ -510,12 +551,65 @@
 
         // 최종적으로 내용 할당
         container.innerHTML = content;
+
+        // 개요 정보 CSV 내보내기 버튼 추가
+        const exportButton = document.createElement('button');
+        exportButton.className = 'seo-checker-export-btn';
+        exportButton.textContent = '개요 정보 CSV 내보내기';
+        exportButton.id = 'export-overview-csv';
+
+        const cardContentForButton = container.querySelector('.overview-data-card .card-content'); // 첫 번째 카드의 content 영역에 추가하거나, 별도 영역을 마련
+        if (cardContentForButton) {
+             // 버튼을 담을 div 생성 (기존 export-buttons 클래스 활용)
+            let exportButtonContainer = container.querySelector('.export-buttons');
+            if (!exportButtonContainer) {
+                exportButtonContainer = document.createElement('div');
+                exportButtonContainer.className = 'card-content export-buttons'; // card-content 클래스도 추가하여 패딩 유지
+                // 파일 링크 카드 위에 버튼을 추가하거나, 적절한 위치를 찾아야 함
+                const fileLinksCard = container.querySelector('.file-links-card');
+                if (fileLinksCard) {
+                    fileLinksCard.parentNode.insertBefore(exportButtonContainer, fileLinksCard);
+                } else {
+                    container.appendChild(exportButtonContainer); // 적절한 위치가 없으면 맨 아래에 추가
+                }
+            }
+            exportButtonContainer.appendChild(exportButton);
+        }
+
+
+        exportButton.addEventListener('click', function() {
+            const overviewData = [
+                { label: '페이지 타이틀', value: title },
+                { label: '타이틀 길이', value: titleLength },
+                { label: '메타 설명', value: description },
+                { label: '설명 길이', value: descriptionLength },
+                { label: '페이지 URL', value: pageUrl },
+                { label: '표준 URL (Canonical)', value: canonicalUrl || '없음' },
+                { label: '색인 가능 여부', value: isIndexable ? '색인 가능' : '색인 불가능' },
+                { label: 'Robots 태그', value: robotsContent || '없음' },
+                { label: 'X-Robots-Tag', value: xRobotsTag },
+                { label: '메타 키워드', value: keywords || '없음' },
+                { label: 'Publisher', value: publisher || '없음' },
+                { label: 'HTML 언어 (lang)', value: htmlLang || '없음' },
+                { label: '본문 단어 수', value: wordCount },
+            ];
+            hreflangData.forEach((item, index) => {
+                overviewData.push({ label: `Hreflang ${index + 1} - 언어`, value: item.lang });
+                overviewData.push({ label: `Hreflang ${index + 1} - URL`, value: item.href });
+            });
+
+            let csvContent = "항목,내용\n";
+            overviewData.forEach(row => {
+                csvContent += `"${row.label.replace(/"/g, '""')}","${String(row.value).replace(/"/g, '""')}"\n`;
+            });
+            downloadCSV(csvContent, '페이지_개요_정보.csv');
+        });
     }
     
     /**
      * 헤딩 분석 함수 (개선)
      */
-    function analyzeHeadings() {
+    async function analyzeHeadings() {
         const container = document.getElementById('seo-checker-headings');
         if (!container) {
             console.error('#seo-checker-headings container not found!');
@@ -1608,7 +1702,7 @@
     /**
      * 스키마(Schema.org) 마크업 분석 함수
      */
-    function analyzeSchema() {
+    async function analyzeSchema() {
         const container = document.getElementById('seo-checker-schema');
         if (!container) {
             console.error('스키마 탭 컨테이너를 찾을 수 없습니다: #seo-checker-schema');
@@ -1618,27 +1712,26 @@
         // 로딩 표시 추가
         container.innerHTML = '<div class="loading-indicator"><div class="loading-spinner"></div><p>구조화 데이터 분석 중...</p></div>';
         
-        // 비동기적으로 스키마 분석 실행
-        setTimeout(() => {
-            try {
-                const schemaResults = collectSchemaData();
-                updateSchemaUI(container, schemaResults);
-            } catch (error) {
-                console.error('스키마 분석 중 오류 발생:', error);
-                container.innerHTML = `
-                    <div class="tab-title">구조화 데이터 (Schema.org)</div>
-                    <div class="overview-data-card">
-                        <div class="card-header">
-                            <h3>스키마 분석 오류</h3>
-                            <span class="seo-checker-status seo-checker-status-error">오류</span>
-                        </div>
-                        <div class="card-content">
-                            <p>데이터 분석 중 문제가 발생했습니다: ${error.message}</p>
-                        </div>
+        try {
+            // 데이터를 수집하는 부분은 동기적으로 처리될 수 있으나, UI 업데이트는 비동기적으로 남겨둘 수 있습니다.
+            // 여기서는 전체를 async로 감싸고, 실제 오래 걸리는 작업이 있다면 await 처리합니다.
+            const schemaResults = collectSchemaData(); // 이 함수는 동기적으로 실행될 수 있습니다.
+            updateSchemaUI(container, schemaResults); // UI 업데이트도 일반적으로 동기적이지만, 복잡하면 분리 가능
+        } catch (error) {
+            console.error('스키마 분석 중 오류 발생:', error);
+            container.innerHTML = `
+                <div class="tab-title">구조화 데이터 (Schema.org)</div>
+                <div class="overview-data-card">
+                    <div class="card-header">
+                        <h3>스키마 분석 오류</h3>
+                        <span class="seo-checker-status seo-checker-status-error">오류</span>
                     </div>
-                `;
-            }
-        }, 100);
+                    <div class="card-content">
+                        <p>데이터 분석 중 문제가 발생했습니다: ${error.message}</p>
+                    </div>
+                </div>
+            `;
+        }
     }
 
     /**
@@ -2089,7 +2182,7 @@
     /**
      * 소셜 미디어 메타태그 분석
      */
-    function analyzeSocial() {
+    async function analyzeSocial() {
         // 소셜 탭 초기화 및 로딩 표시
         const socialContentElement = document.getElementById('seo-checker-social');
         
@@ -2099,21 +2192,21 @@
         }
         
         console.log('소셜 탭 분석 시작:', socialContentElement);
-        socialContentElement.innerHTML = '<div class="lds-ring seo-loader"><div></div><div></div><div></div><div></div></div>';
+        socialContentElement.innerHTML = '<div class="loading-indicator"><div class="loading-spinner"></div><p>소셜 태그 분석 중...</p></div>'; // 이미 일관된 로딩 스피너를 사용하고 있었네요. 이 부분은 변경하지 않습니다.
 
         try {
-            // 각 소셜 미디어 플랫폼 메타태그 수집
+            // 각 소셜 미디어 플랫폼 메타태그 수집 (동기적으로 처리 가능)
             const openGraphTags = collectOpenGraphTags();
             console.log('수집된 OpenGraph 태그:', openGraphTags);
             
             const twitterTags = collectTwitterTags();
             console.log('수집된 Twitter 태그:', twitterTags);
             
-            // UI 업데이트
+            // UI 업데이트 (동기적으로 처리 가능)
             updateSocialUI(openGraphTags, twitterTags);
         } catch (error) {
             console.error('소셜 미디어 분석 중 오류 발생:', error);
-            socialContentElement.innerHTML = `<div class="error-message">소셜 미디어 태그 분석 중 오류가 발생했습니다: ${error.message}</div>`;
+            socialContentElement.innerHTML = `<div class="overview-data-card"><div class="card-header"><h3>분석 오류</h3><span class="seo-checker-status seo-checker-status-error">오류</span></div><div class="card-content"><p>소셜 미디어 태그 분석 중 오류가 발생했습니다: ${error.message}</p></div></div>`;
         }
     }
 
@@ -2264,78 +2357,70 @@
     function createSocialPreview(openGraphTags, twitterTags) {
         console.log('createSocialPreview 함수 호출됨:', { openGraphTags, twitterTags });
         
-        let html = '';
-        
+        let facebookPreviewHtml = '';
+        let twitterPreviewHtml = '';
+
         try {
-            // Facebook/OpenGraph 미리보기
-            html += '<div class="social-preview">';
-            html += '<h4>Facebook/OpenGraph</h4>';
-            html += '<div class="preview-card">';
-            
-            // 이미지
+            // --- Facebook/OpenGraph 미리보기 생성 ---
+            const ogTitle = getMetaContent(openGraphTags, 'og:title') || document.title || '제목 없음';
+            const ogDescription = getMetaContent(openGraphTags, 'og:description') || '설명 없음';
             const ogImage = getMetaContent(openGraphTags, 'og:image');
-            if (ogImage) {
-                html += `<div class="preview-image"><img src="${ogImage}" alt="미리보기 이미지"></div>`;
-            } else {
-                html += '<div class="preview-no-image">이미지가 없습니다</div>';
-            }
-            
-            html += '<div class="preview-content">';
-            
-            // 사이트 이름
-            const ogSite = getMetaContent(openGraphTags, 'og:site_name') || new URL(window.location.href).hostname;
-            html += `<div class="preview-site">${ogSite}</div>`;
-            
-            // 제목
-            const ogTitle = getMetaContent(openGraphTags, 'og:title') || document.title;
-            html += `<div class="preview-title">${ogTitle}</div>`;
-            
-            // 설명
-            const ogDescription = getMetaContent(openGraphTags, 'og:description') || '';
-            html += `<div class="preview-description">${ogDescription}</div>`;
-            
-            // URL
+            const ogSiteName = getMetaContent(openGraphTags, 'og:site_name') || window.location.hostname;
             const ogUrl = getMetaContent(openGraphTags, 'og:url') || window.location.href;
-            html += `<div class="preview-url">${ogUrl}</div>`;
-            
-            html += '</div></div></div>';
-            
-            // Twitter 카드 미리보기
+
+            facebookPreviewHtml = `
+                <div class="social-preview-wrapper facebook-preview">
+                    <h5>Facebook / OpenGraph 미리보기</h5>
+                    <div class="social-card">
+                        ${ogImage ? `<div class="social-card-image"><img src="${ogImage}" alt="OpenGraph 이미지"></div>` : '<div class="social-card-no-image">이미지 없음</div>'}
+                        <div class="social-card-content">
+                            <div class="social-card-site-name">${ogSiteName}</div>
+                            <div class="social-card-title">${ogTitle}</div>
+                            <div class="social-card-description">${ogDescription.substring(0, 100)}${ogDescription.length > 100 ? '...' : ''}</div>
+                            <div class="social-card-url">${new URL(ogUrl).hostname.toUpperCase()}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // --- Twitter 카드 미리보기 생성 ---
             const twitterCardType = getMetaContent(twitterTags, 'twitter:card') || 'summary_large_image';
-            
-            html += `<div class="social-preview">`;
-            html += `<h4>Twitter (${twitterCardType})</h4>`;
-            html += `<div class="preview-card twitter-card ${twitterCardType}">`;
-            
-            // 이미지
+            const twitterTitle = getMetaContent(twitterTags, 'twitter:title') || ogTitle;
+            const twitterDescription = getMetaContent(twitterTags, 'twitter:description') || ogDescription;
             const twitterImage = getMetaContent(twitterTags, 'twitter:image') || ogImage;
+            const twitterSite = getMetaContent(twitterTags, 'twitter:site') || `@${ogSiteName.replace(/\..*/, '')}`; // 간단한 핸들 추정
+
+            let twitterImageHtml = '';
             if (twitterImage) {
-                html += `<div class="preview-image"><img src="${twitterImage}" alt="Twitter 미리보기 이미지"></div>`;
+                if (twitterCardType === 'summary_large_image') {
+                    twitterImageHtml = `<div class="social-card-image large"><img src="${twitterImage}" alt="Twitter 이미지"></div>`;
+                } else { // summary card
+                    twitterImageHtml = `<div class="social-card-image small"><img src="${twitterImage}" alt="Twitter 이미지"></div>`;
+                }
             } else {
-                html += '<div class="preview-no-image">이미지가 없습니다</div>';
+                 twitterImageHtml = '<div class="social-card-no-image small">이미지 없음</div>';
             }
             
-            html += '<div class="preview-content">';
+            twitterPreviewHtml = `
+                <div class="social-preview-wrapper twitter-preview">
+                    <h5>Twitter 미리보기 (${twitterCardType})</h5>
+                    <div class="social-card twitter-card-type-${twitterCardType}">
+                        ${twitterCardType === 'summary_large_image' ? twitterImageHtml : ''}
+                        <div class="social-card-content">
+                             ${twitterCardType === 'summary' && twitterImage ? twitterImageHtml : ''}
+                            <div class="social-card-title">${twitterTitle}</div>
+                            <div class="social-card-description">${twitterDescription.substring(0, 80)}${twitterDescription.length > 80 ? '...' : ''}</div>
+                            <div class="social-card-site-name">${twitterSite}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
             
-            // 사이트 이름
-            const twitterSite = getMetaContent(twitterTags, 'twitter:site') || '';
-            html += `<div class="preview-site">${twitterSite || ogSite}</div>`;
-            
-            // 제목
-            const twitterTitle = getMetaContent(twitterTags, 'twitter:title') || ogTitle;
-            html += `<div class="preview-title">${twitterTitle}</div>`;
-            
-            // 설명
-            const twitterDescription = getMetaContent(twitterTags, 'twitter:description') || ogDescription;
-            html += `<div class="preview-description">${twitterDescription}</div>`;
-            
-            html += '</div></div></div>';
-            
-            console.log('createSocialPreview HTML 생성 완료, 길이:', html.length);
-            return html;
+            return facebookPreviewHtml + twitterPreviewHtml;
+
         } catch (error) {
             console.error('createSocialPreview 함수 오류:', error);
-            return '<div class="error-message">미리보기를 생성하는 중 오류가 발생했습니다</div>';
+            return '<div class="error-message">미리보기를 생성하는 중 오류가 발생했습니다.</div>';
         }
     }
 
@@ -2462,7 +2547,7 @@
     /**
      * 고급 SEO 분석 함수
      */
-    function analyzeAdvanced() {
+    async function analyzeAdvanced() {
         const advancedTab = document.getElementById('seo-checker-advanced');
         
         if (!advancedTab) {
@@ -2473,105 +2558,102 @@
         // 로딩 표시 추가
         advancedTab.innerHTML = '<div class="loading-indicator"><div class="loading-spinner"></div><p>고급 분석 중...</p></div>';
         
-        // 비동기 분석 수행
-        setTimeout(() => {
-            try {
-                // 1. 탭 제목 생성
-                let html = `<div class="tab-title">고급 SEO 분석</div>`;
-                
-                // 2. 카드 레이아웃 시작
-                html += '<div class="overview-cards">';
-                
-                // 3. 고급 분석 요약 카드 추가
-                html += `
-                    <div class="overview-summary-card">
-                        <div class="card-header">
-                            <h3>고급 분석 요약</h3>
+        try {
+            // 1. 탭 제목 생성
+            let html = `<div class="tab-title">고급 SEO 분석</div>`;
+
+            // 2. 카드 레이아웃 시작
+            html += '<div class="overview-cards">';
+
+            // 3. 고급 분석 요약 카드 추가
+            html += `
+                <div class="overview-summary-card">
+                    <div class="card-header">
+                        <h3>고급 분석 요약</h3>
+                    </div>
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <span>페이지 요소</span>
+                            <strong>${document.querySelectorAll('*').length}개</strong>
                         </div>
-                        <div class="summary-grid">
-                            <div class="summary-item">
-                                <span>페이지 요소</span>
-                                <strong>${document.querySelectorAll('*').length}개</strong>
+                        <div class="summary-item">
+                            <span>스크립트</span>
+                            <strong>${document.querySelectorAll('script').length}개</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>스타일시트</span>
+                            <strong>${document.querySelectorAll('link[rel="stylesheet"]').length}개</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>이미지</span>
+                            <strong>${document.querySelectorAll('img').length}개</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>내부 링크</span>
+                            <strong>${document.querySelectorAll('a[href^="/"]:not([href^="//"])').length}개</strong>
+                        </div>
+                        <div class="summary-item">
+                            <span>외부 링크</span>
+                            <strong>${document.querySelectorAll('a[href^="http"]:not([href^="' + window.location.origin + '"])').length}개</strong>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 성능 분석 섹션 추가 (동기적으로 처리될 수 있는 부분)
+            html += createPerformanceAnalysis();
+
+            // 고급 SEO 분석 섹션 추가 (동기적으로 처리될 수 있는 부분)
+            html += createAdvancedSEOAnalysis();
+
+            // 키워드 분석 카드 추가 (동기적으로 처리될 수 있는 부분)
+            html += `
+                <div class="overview-data-card full-width">
+                    <div class="card-header">
+                        <h3>키워드 분석</h3>
+                        <div class="seo-checker-status seo-checker-status-info">상위 키워드</div>
+                    </div>
+                    <div class="card-content">
+                        <div class="data-meta">
+                            <p class="importance-note">페이지 내용에서 자주 등장하는 주요 키워드입니다. 검색 최적화를 위해 이 키워드들이 제목, 설명, 헤딩에 적절히 사용되었는지 확인하세요.</p>
+                        </div>
+                        <div class="keyword-analysis">
+                            <div class="keyword-cloud">
+                                ${extractKeywords().map(keyword =>
+                                    `<span class="keyword" style="font-size: ${Math.max(100, Math.min(180, 100 + keyword[1] * 10))}%">${keyword[0]} <small>(${keyword[1]})</small></span>`).join('')}
                             </div>
-                            <div class="summary-item">
-                                <span>스크립트</span>
-                                <strong>${document.querySelectorAll('script').length}개</strong>
-                            </div>
-                            <div class="summary-item">
-                                <span>스타일시트</span>
-                                <strong>${document.querySelectorAll('link[rel="stylesheet"]').length}개</strong>
-                            </div>
-                            <div class="summary-item">
-                                <span>이미지</span>
-                                <strong>${document.querySelectorAll('img').length}개</strong>
-                            </div>
-                            <div class="summary-item">
-                                <span>내부 링크</span>
-                                <strong>${document.querySelectorAll('a[href^="/"]:not([href^="//"])').length}개</strong>
-                            </div>
-                            <div class="summary-item">
-                                <span>외부 링크</span>
-                                <strong>${document.querySelectorAll('a[href^="http"]:not([href^="' + window.location.origin + '"])').length}개</strong>
+                            <div class="data-meta compact">
+                                <p>키워드 클라우드의 크기는 키워드 빈도에 비례합니다. 자주 등장하는 키워드일수록 더 크게 표시됩니다.</p>
                             </div>
                         </div>
                     </div>
-                `;
-                
-                // 성능 분석 섹션 추가
-                html += createPerformanceAnalysis();
-                
-                // 고급 SEO 분석 섹션 추가
-                html += createAdvancedSEOAnalysis();
-                
-                // 키워드 분석 카드 추가
-                html += `
-                    <div class="overview-data-card full-width">
-                        <div class="card-header">
-                            <h3>키워드 분석</h3>
-                            <div class="seo-checker-status seo-checker-status-info">상위 키워드</div>
-                        </div>
-                        <div class="card-content">
-                            <div class="data-meta">
-                                <p class="importance-note">페이지 내용에서 자주 등장하는 주요 키워드입니다. 검색 최적화를 위해 이 키워드들이 제목, 설명, 헤딩에 적절히 사용되었는지 확인하세요.</p>
-                            </div>
-                            <div class="keyword-analysis">
-                                <div class="keyword-cloud">
-                                    ${extractKeywords().map(keyword => 
-                                        `<span class="keyword" style="font-size: ${Math.max(100, Math.min(180, 100 + keyword[1] * 10))}%">${keyword[0]} <small>(${keyword[1]})</small></span>`).join('')}
-                                </div>
-                                <div class="data-meta compact">
-                                    <p>키워드 클라우드의 크기는 키워드 빈도에 비례합니다. 자주 등장하는 키워드일수록 더 크게 표시됩니다.</p>
-                                </div>
-                            </div>
-                        </div>
+                </div>
+            `;
+
+            // 카드 레이아웃 종료
+            html += '</div>';
+
+            // UI 업데이트
+            advancedTab.innerHTML = html;
+
+            // 이벤트 리스너 설정 (필요하다면)
+            setupAdvancedFeatures();
+
+        } catch (error) {
+            console.error('고급 분석 중 오류 발생:', error);
+            advancedTab.innerHTML = `
+                <div class="tab-title">고급 SEO 분석</div>
+                <div class="overview-data-card">
+                    <div class="card-header">
+                        <h3>분석 오류</h3>
+                        <span class="seo-checker-status seo-checker-status-error">오류</span>
                     </div>
-                `;
-                
-                // 카드 레이아웃 종료
-                html += '</div>';
-                
-                // UI 업데이트
-                advancedTab.innerHTML = html;
-                
-                // 이벤트 리스너 설정
-                setupAdvancedFeatures();
-                
-            } catch (error) {
-                console.error('고급 분석 중 오류 발생:', error);
-                advancedTab.innerHTML = `
-                    <div class="tab-title">고급 SEO 분석</div>
-                    <div class="overview-data-card">
-                        <div class="card-header">
-                            <h3>분석 오류</h3>
-                            <span class="seo-checker-status seo-checker-status-error">오류</span>
-                        </div>
-                        <div class="card-content">
-                            <p>데이터 분석 중 문제가 발생했습니다: ${error.message}</p>
-                        </div>
+                    <div class="card-content">
+                        <p>데이터 분석 중 문제가 발생했습니다: ${error.message}</p>
                     </div>
-                `;
-            }
-        }, 100);
+                </div>
+            `;
+        }
     }
 
     /**
@@ -2819,37 +2901,93 @@
     }
 
     /**
-     * Core Web Vitals 지표 생성
+     * Core Web Vitals 지표 생성 (개선)
      */
     function generateCoreWebVitalsMetrics() {
-        // 실제 측정이 불가능한 부분이므로 예시 데이터 표시
-        const metrics = [
-            { name: 'LCP', value: '2.5s', status: 'good', description: '가장 큰 콘텐츠 페인트 시간', threshold: '< 2.5초 양호' },
-            { name: 'FID', value: '85ms', status: 'warning', description: '첫 입력 지연 시간', threshold: '< 100ms 양호' },
-            { name: 'CLS', value: '0.12', status: 'warning', description: '누적 레이아웃 이동', threshold: '< 0.1 양호' },
-            { name: 'FCP', value: '1.2s', status: 'good', description: '첫 콘텐츠 페인트 시간', threshold: '< 1.8초 양호' }
-        ];
-        
         let html = '';
-        
-        metrics.forEach(metric => {
-            const statusText = {
-                'good': '양호',
-                'warning': '개선 필요',
-                'error': '불량'
-            }[metric.status];
+        const webVitalsNotSupported = '<p>이 브라우저/환경에서는 Web Vitals 측정을 지원하지 않습니다. <a href="https://pagespeed.web.dev/" target="_blank" rel="noopener noreferrer">PageSpeed Insights</a> 같은 도구를 사용해 확인하세요.</p>';
+
+        if (typeof PerformanceObserver !== 'undefined' && performance.getEntriesByType) {
+            const metrics = [
+                { name: 'LCP', value: '측정 중...', status: 'info', description: '가장 큰 콘텐츠 페인트 시간 (Largest Contentful Paint)', threshold: '좋음: ≤2.5초, 개선 필요: ≤4초, 나쁨: >4초' },
+                { name: 'FID', value: '측정 중...', status: 'info', description: '첫 입력 지연 시간 (First Input Delay)', threshold: '좋음: ≤100ms, 개선 필요: ≤300ms, 나쁨: >300ms' },
+                { name: 'CLS', value: '측정 중...', status: 'info', description: '누적 레이아웃 이동 (Cumulative Layout Shift)', threshold: '좋음: ≤0.1, 개선 필요: ≤0.25, 나쁨: >0.25' },
+                { name: 'FCP', value: '측정 중...', status: 'info', description: '첫 콘텐츠 페인트 시간 (First Contentful Paint)', threshold: '좋음: ≤1.8초, 개선 필요: ≤3초, 나쁨: >3초' }
+            ];
+
+            const observer = new PerformanceObserver((list) => {
+                for (const entry of list.getEntries()) {
+                    const metric = metrics.find(m => m.name.toLowerCase() === entry.name.split('-')[0] || m.name.toLowerCase() === entry.entryType);
+                    if (metric) {
+                        let value = entry.value !== undefined ? entry.value : entry.startTime;
+                        let status = 'info';
+
+                        if (entry.name === 'first-input') { // FID
+                            value = entry.duration;
+                            if (value <= 100) status = 'good';
+                            else if (value <= 300) status = 'warning';
+                            else status = 'error';
+                            metric.value = `${value.toFixed(0)}ms`;
+                        } else if (entry.name === 'LCP' || entry.entryType === 'largest-contentful-paint') {
+                             value /= 1000; // 초 단위로 변환
+                            if (value <= 2.5) status = 'good';
+                            else if (value <= 4) status = 'warning';
+                            else status = 'error';
+                            metric.value = `${value.toFixed(2)}s`;
+                        } else if (entry.name === 'CLS' || entry.entryType === 'layout-shift') {
+                             // CLS는 누적 값이므로, 마지막 항목으로 업데이트 (실제로는 더 복잡한 집계 필요)
+                            value = entry.value;
+                            if (value <= 0.1) status = 'good';
+                            else if (value <= 0.25) status = 'warning';
+                            else status = 'error';
+                            metric.value = value.toFixed(3);
+                        } else if (entry.entryType === 'first-contentful-paint') {
+                             value /= 1000; // 초 단위로 변환
+                            if (value <= 1.8) status = 'good';
+                            else if (value <= 3) status = 'warning';
+                            else status = 'error';
+                             metric.value = `${value.toFixed(2)}s`;
+                        }
+                        metric.status = status;
+
+                        // UI 업데이트 (해당 메트릭 카드만)
+                        const metricCardElement = document.querySelector(`.metric-card.${metric.name.toLowerCase()}-metric`);
+                        if (metricCardElement) {
+                            metricCardElement.querySelector('.metric-value').textContent = metric.value;
+                            const statusElement = metricCardElement.querySelector('.metric-status');
+                            statusElement.className = `metric-status seo-checker-status-${status}`;
+                            statusElement.textContent = status === 'good' ? '양호' : status === 'warning' ? '개선 필요' : '나쁨';
+                        }
+                    }
+                }
+            });
+
+            try {
+                observer.observe({ type: 'largest-contentful-paint', buffered: true });
+                observer.observe({ type: 'first-input', buffered: true });
+                observer.observe({ type: 'layout-shift', buffered: true });
+                observer.observe({ type: 'paint', entryTypes: ['first-contentful-paint'], buffered: true }); // FCP
+            } catch (e) {
+                console.warn('PerformanceObserver 지원 오류:', e);
+                return webVitalsNotSupported;
+            }
             
-            html += `
-                <div class="metric-card ${metric.status}">
-                    <div class="metric-title">${metric.name}</div>
-                    <div class="metric-value">${metric.value}</div>
-                    <div class="metric-status seo-checker-status-${metric.status}">${statusText}</div>
-                    <div class="metric-desc">${metric.description}</div>
-                    <div class="metric-threshold">${metric.threshold}</div>
-                </div>
-            `;
-        });
-        
+            metrics.forEach(metric => {
+                const statusText = metric.status === 'good' ? '양호' : metric.status === 'warning' ? '개선 필요' : metric.status === 'error' ? '나쁨' : '정보';
+                html += `
+                    <div class="metric-card ${metric.name.toLowerCase()}-metric ${metric.status}">
+                        <div class="metric-title">${metric.name}</div>
+                        <div class="metric-value">${metric.value}</div>
+                        <div class="metric-status seo-checker-status-${metric.status}">${statusText}</div>
+                        <div class="metric-desc">${metric.description}</div>
+                        <div class="metric-threshold">${metric.threshold}</div>
+                    </div>
+                `;
+            });
+
+        } else {
+            html = webVitalsNotSupported;
+        }
         return html;
     }
 
@@ -2970,76 +3108,128 @@
     }
 
     /**
-     * 모바일 친화성 체크
+     * 모바일 친화성 체크 (개선)
      */
     function checkMobileFriendliness() {
-        // 모바일 친화성 검사 요소
-        const checks = [
-            { name: '뷰포트 설정', passed: !!document.querySelector('meta[name="viewport"]'), importance: 'high' },
-            { name: '적절한 글꼴 크기', passed: checkFontSizes(), importance: 'medium' },
-            { name: '탭 요소 간격', passed: checkTapTargets(), importance: 'medium' },
-            { name: '콘텐츠 너비 조정', passed: checkContentWidth(), importance: 'high' },
-            { name: '모바일 전용 리디렉션 없음', passed: true, importance: 'low' } // 직접 확인하기 어려운 항목
-        ];
-        
-        // 체크 결과 요약
-        const passedChecks = checks.filter(check => check.passed).length;
-        const totalChecks = checks.length;
-        const mobileFriendlyScore = Math.round((passedChecks / totalChecks) * 100);
-        
-        // 요약 상태 결정
-        let statusClass = 'good';
-        let statusText = '모바일 친화적';
-        
-        if (mobileFriendlyScore < 80) {
-            statusClass = 'warning';
-            statusText = '개선 필요';
+        const results = {
+            viewport: { name: '뷰포트 설정', passed: false, details: '<code>&lt;meta name="viewport"&gt;</code> 태그를 찾을 수 없습니다.', importance: 'high', statusClass: 'error' },
+            viewportWidth: { name: '뷰포트 너비', passed: false, details: '<code>width=device-width</code> 설정이 권장됩니다.', importance: 'high', statusClass: 'warning' },
+            initialScale: { name: '초기 배율', passed: false, details: '<code>initial-scale=1</code> 설정이 권장됩니다.', importance: 'high', statusClass: 'warning' },
+            userScalable: { name: '사용자 확대/축소', passed: true, details: '사용자 확대/축소가 가능합니다.', importance: 'medium', statusClass: 'good' },
+            tapTargets: { name: '터치 타겟 크기', passed: true, details: '대부분의 터치 타겟이 적절한 크기입니다.', issues: [], importance: 'medium', statusClass: 'good' },
+            fontSizes: { name: '글꼴 크기', passed: true, details: '대부분의 텍스트가 읽기 좋은 크기입니다.', issues: [], importance: 'medium', statusClass: 'good' },
+            contentWidth: { name: '콘텐츠 너비', passed: true, details: '콘텐츠가 화면 너비에 맞게 조정됩니다.', importance: 'high', statusClass: 'good' }
+        };
+
+        // 1. 뷰포트 설정 검사
+        const viewportMeta = document.querySelector('meta[name="viewport"]');
+        if (viewportMeta) {
+            results.viewport.passed = true;
+            results.viewport.details = '<code>&lt;meta name="viewport"&gt;</code> 태그가 존재합니다.';
+            results.viewport.statusClass = 'good';
+
+            const content = viewportMeta.getAttribute('content') || '';
+            if (content.includes('width=device-width')) {
+                results.viewportWidth.passed = true;
+                results.viewportWidth.details = '<code>width=device-width</code>가 설정되었습니다.';
+                results.viewportWidth.statusClass = 'good';
+            } else {
+                results.viewportWidth.statusClass = 'error';
+            }
+
+            if (content.includes('initial-scale=1')) {
+                results.initialScale.passed = true;
+                results.initialScale.details = '<code>initial-scale=1</code>이 설정되었습니다.';
+                results.initialScale.statusClass = 'good';
+            } else {
+                 results.initialScale.statusClass = 'warning'; // 에러보다는 경고 수준
+            }
+
+            if (content.includes('user-scalable=no') || /maximum-scale=1/.test(content)) {
+                results.userScalable.passed = false;
+                results.userScalable.details = '사용자 확대/축소가 제한되어 있습니다. 접근성을 위해 허용하는 것이 좋습니다.';
+                results.userScalable.statusClass = 'warning';
+            }
         }
-        if (mobileFriendlyScore < 60) {
-            statusClass = 'error';
-            statusText = '모바일 최적화 부족';
+
+        // 2. 터치 타겟 크기 검사 (최소 48x48 CSS 픽셀)
+        const interactiveElements = document.querySelectorAll('a, button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"]');
+        let smallTapTargets = 0;
+        const minTapSize = 48;
+        interactiveElements.forEach(el => {
+            if (el.closest('#seo-checker-overlay')) return; // 북마클릿 UI 요소 제외
+            const rect = el.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0 && (rect.width < minTapSize || rect.height < minTapSize)) {
+                smallTapTargets++;
+                if (results.tapTargets.issues.length < 5) { // 처음 5개 문제만 기록
+                    results.tapTargets.issues.push(`'${el.innerText.substring(0,20)}...' 요소 (${rect.width.toFixed(0)}x${rect.height.toFixed(0)}px)`);
+                }
+            }
+        });
+        if (smallTapTargets > 0) {
+            results.tapTargets.passed = false;
+            results.tapTargets.details = `${smallTapTargets}개의 터치 타겟이 권장 크기(${minTapSize}x${minTapSize}px)보다 작습니다.`;
+            results.tapTargets.statusClass = 'warning';
+            if (smallTapTargets > interactiveElements.length / 2) results.tapTargets.statusClass = 'error';
         }
         
+        // 3. 가독성 있는 글꼴 크기 (최소 12px, 대부분 16px 권장)
+        const textElements = document.querySelectorAll('p, li, td, span, div'); // 주요 텍스트 요소
+        let smallFontElements = 0;
+        const minFontSize = 12;
+        const recommendedMinFontSize = 16;
+        let checkedTextElements = 0;
+
+        textElements.forEach(el => {
+            if (el.closest('#seo-checker-overlay') || !el.offsetParent) return; // 북마클릿 UI 또는 숨겨진 요소 제외
+            if (el.textContent.trim().length < 10) return; // 의미있는 텍스트가 거의 없는 요소 제외
+            
+            const style = window.getComputedStyle(el);
+            const fontSize = parseFloat(style.fontSize);
+            checkedTextElements++;
+
+            if (fontSize < minFontSize) {
+                smallFontElements++;
+                 if (results.fontSizes.issues.length < 5) {
+                    results.fontSizes.issues.push(`'${el.textContent.substring(0,30).trim()}...' 텍스트 (현재 ${fontSize.toFixed(1)}px)`);
+                }
+            }
+        });
+
+        if (checkedTextElements > 0 && smallFontElements > 0) {
+            results.fontSizes.passed = false;
+            results.fontSizes.details = `${smallFontElements}개의 텍스트 요소가 ${minFontSize}px보다 작습니다. (권장: ${recommendedMinFontSize}px 이상)`;
+            results.fontSizes.statusClass = 'warning';
+             if (smallFontElements > checkedTextElements / 2) results.fontSizes.statusClass = 'error';
+        }
+
+
+        // 4. 콘텐츠 너비 조정
+        if (document.documentElement.scrollWidth > window.innerWidth + 10) { // 10px 오차 허용
+            results.contentWidth.passed = false;
+            results.contentWidth.details = '페이지 콘텐츠가 화면 너비보다 넓어 가로 스크롤이 발생할 수 있습니다.';
+            results.contentWidth.statusClass = 'error';
+        }
+
         // HTML 생성
-        let html = `
-            <div class="mobile-friendly-summary">
-                <div class="mobile-friendly-score seo-checker-status-${statusClass}">
-                    ${mobileFriendlyScore}% - ${statusText}
-                </div>
-            </div>
-            
-            <table class="mobile-checks-table">
-                <tr>
-                    <th>검사 항목</th>
-                    <th>상태</th>
-                </tr>
-        `;
-        
-        // 각 검사 항목에 대한 결과 행 추가
-        checks.forEach(check => {
-            const importanceLabel = {
-                'high': '⚠️ 중요',
-                'medium': '🔍 권장',
-                'low': '📌 참고'
-            }[check.importance];
-            
+        let html = '';
+        Object.values(results).forEach(check => {
+            const statusText = check.statusClass === 'good' ? '양호' : check.statusClass === 'warning' ? '개선 필요' : '오류';
             html += `
-                <tr>
-                    <td>
-                        <div>${check.name}</div>
-                        <div class="check-importance">${importanceLabel}</div>
-                    </td>
-                    <td>
-                        <span class="check-status ${check.passed ? 'passed' : 'failed'}">
-                            ${check.passed ? '통과' : '실패'}
-                        </span>
-                    </td>
-                </tr>
+                <div class="data-item">
+                    <div class="data-label">${check.name}</div>
+                    <div class="data-value">
+                        ${check.details}
+                        ${check.issues && check.issues.length > 0 ?
+                            `<ul class="issue-detail-list">${check.issues.map(issue => `<li>${issue}</li>`).join('')}</ul>`
+                            : ''}
+                    </div>
+                    <div class="data-status">
+                        <span class="seo-checker-status seo-checker-status-${check.statusClass}">${statusText}</span>
+                    </div>
+                </div>
             `;
         });
-        
-        html += '</table>';
-        
         return html;
     }
 
@@ -3360,7 +3550,7 @@
     /**
      * 문서 구조 분석 함수 (개선: 중첩 리스트 및 핵심 요소 표시)
      */
-    function analyzeDocumentStructure() {
+    async function analyzeDocumentStructure() {
         const container = document.getElementById('seo-checker-structure');
         if (!container) return;
 
