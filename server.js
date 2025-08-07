@@ -1,21 +1,29 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// ES Modules don't have __dirname, so we derive it
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const port = process.env.PORT || 3000;
 
-// CORS 설정 - 모든 도메인에서 접근할 수 있도록 허용
+// CORS configuration - allow all domains
 app.use(cors());
 
-// 정적 파일 제공
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static files from the 'dist' directory
+// This will contain the built Svelte app (including the new index.html, JS, and CSS)
+app.use(express.static(path.join(__dirname, 'dist')));
 
-// 기본 라우트
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+// A catch-all route to serve index.html for any non-static-file route
+// This is important for single-page applications (SPAs) with client-side routing
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-// 서버 시작
+// Start the server
 app.listen(port, () => {
-  console.log(`SEO & 웹접근성 체크 북마클릿 서버가 http://localhost:${port}에서 실행 중입니다`);
+  console.log(`SEO & Web Accessibility Checker server is running at http://localhost:${port}`);
 }); 
